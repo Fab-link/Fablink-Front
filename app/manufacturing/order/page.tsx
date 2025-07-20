@@ -33,6 +33,9 @@ export default function ManufacturingStep8() {
     agreeMarketing: false,
   })
 
+  // 버튼 텍스트를 "견적 요청"으로 변경하고 클릭 시 팝업 표시
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+
   useEffect(() => {
     const data = localStorage.getItem("manufacturingData")
     if (data) {
@@ -85,7 +88,7 @@ export default function ManufacturingStep8() {
     // Simulate order processing
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
-    router.push("/manufacturing/success")
+    setShowSuccessPopup(true)
   }
 
   const handleBack = () => {
@@ -410,17 +413,31 @@ export default function ManufacturingStep8() {
             {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                주문 처리 중...
+                요청 처리 중...
               </>
             ) : (
               <>
                 <CheckCircle className="mr-2 h-4 w-4" />
-                {pricing.finalPrice.toLocaleString()}원 주문하기
+                {pricing.finalPrice.toLocaleString()}원 견적 요청
               </>
             )}
           </Button>
         </div>
       </div>
+    </div>
+  )
+  showSuccessPopup && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <Card className="max-w-md mx-4">
+        <CardContent className="pt-6 text-center">
+          <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+          <h3 className="text-xl font-bold mb-2">견적 요청이 완료되었습니다!</h3>
+          <p className="text-gray-600 mb-6">담당자가 검토 후 연락드리겠습니다.</p>
+          <Button onClick={() => router.push("/dashboard")} className="w-full">
+            메인 페이지로 이동
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

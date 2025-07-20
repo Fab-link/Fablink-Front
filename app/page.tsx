@@ -14,17 +14,22 @@ export default function HomePage() {
               <Shirt className="h-8 w-8 text-blue-600" />
               <h1 className="text-2xl font-bold text-gray-900">옷 제작 플랫폼</h1>
             </div>
-            <nav className="hidden md:flex space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-gray-900">
-                서비스
-              </a>
-              <a href="#process" className="text-gray-600 hover:text-gray-900">
-                제작과정
-              </a>
-              <a href="#contact" className="text-gray-600 hover:text-gray-900">
-                문의
-              </a>
-            </nav>
+            <div className="flex items-center space-x-4">
+              <nav className="hidden md:flex space-x-8">
+                <a href="#features" className="text-gray-600 hover:text-gray-900">
+                  서비스
+                </a>
+                <a href="#process" className="text-gray-600 hover:text-gray-900">
+                  제작과정
+                </a>
+                <a href="#contact" className="text-gray-600 hover:text-gray-900">
+                  문의
+                </a>
+              </nav>
+              <Link href="/login">
+                <Button variant="outline">로그인</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>

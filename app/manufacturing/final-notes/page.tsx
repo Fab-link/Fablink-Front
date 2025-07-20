@@ -139,7 +139,7 @@ export default function ManufacturingStep6() {
                 ) : (
                   <>
                     <Send className="mr-2 h-4 w-4" />
-                    주문 제출
+                    작업 지시서 확인
                   </>
                 )}
               </Button>
