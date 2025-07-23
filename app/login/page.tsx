@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,11 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shirt, User, Factory } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [formData, setFormData] = useState({
-    id: "",
+    username: "", // 'id'를 'username'으로 변경
     password: "",
     userType: "",
   })
@@ -25,26 +26,59 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate login process
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/token/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
+      })
 
-    // Store user info
-    localStorage.setItem(
-      "userInfo",
-      JSON.stringify({
-        id: formData.id,
-        userType: formData.userType,
-        loginTime: new Date().toISOString(),
-      }),
-    )
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || "로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.")
+      }
 
-    setIsLoading(false)
+      const data = await response.json()
 
-    // Redirect to main page
-    router.push("/dashboard")
+      // Store tokens and user info
+      localStorage.setItem("accessToken", data.access)
+      localStorage.setItem("refreshToken", data.refresh)
+      localStorage.setItem(
+        "userInfo",
+        JSON.stringify({
+          username: formData.username,
+          userType: formData.userType, // 로그인 시 선택한 userType 저장
+          loginTime: new Date().toISOString(),
+        }),
+      )
+      
+      toast({
+        title: "로그인 성공",
+        description: "메인 페이지로 이동합니다.",
+      })
+
+      // Redirect to main page
+      router.push("/dashboard")
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."
+      console.error("Login failed:", errorMessage)
+      toast({
+        title: "로그인 실패",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const isFormValid = formData.id && formData.password && formData.userType
+  const isFormValid = formData.username && formData.password && formData.userType
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -68,13 +102,13 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="id">아이디 *</Label>
+                <Label htmlFor="username">아이디 *</Label>
                 <Input
-                  id="id"
+                  id="username"
                   type="text"
                   placeholder="아이디를 입력하세요"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
                 />
               </div>
@@ -134,15 +168,11 @@ export default function LoginPage() {
         {/* Demo Accounts */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
-            <h3 className="font-medium text-blue-900 mb-3">데모 계정</h3>
+            <h3 className="font-medium text-blue-900 mb-3">테스트 계정</h3>
             <div className="space-y-2 text-sm text-blue-800">
               <div>
                 <p className="font-medium">디자이너 계정</p>
-                <p>ID: designer / PW: 1234</p>
-              </div>
-              <div>
-                <p className="font-medium">공장 계정</p>
-                <p>ID: factory / PW: 1234</p>
+                <p>ID: testuser / PW: testpassword</p>
               </div>
             </div>
           </CardContent>
