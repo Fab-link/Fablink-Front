@@ -7,27 +7,43 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Shirt, Menu, Plus, FileText, User, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useAuthContext } from "@/contexts/AuthContext"
+import { debugLog } from "@/lib/config"
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { user, isAuthenticated, isLoading, logout } = useAuthContext()
   const [userInfo, setUserInfo] = useState<any>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   useEffect(() => {
-    const userData = localStorage.getItem("userInfo")
-    if (userData) {
-      setUserInfo(JSON.parse(userData))
-    } else {
-      router.push("/login")
+    debugLog('대시보드 페이지 마운트:', { isAuthenticated, user, isLoading });
+    
+    if (!isLoading) {
+      if (isAuthenticated && user) {
+        // 인증 컨텍스트의 사용자 정보를 사용
+        const newUserInfo = {
+          id: user.username,
+          userType: user.user_type,
+          loginTime: new Date().toISOString()
+        };
+        debugLog('사용자 정보 설정:', newUserInfo);
+        setUserInfo(newUserInfo);
+      } else {
+        debugLog('인증되지 않음, 로그인 페이지로 리디렉션');
+        router.push("/login");
+      }
     }
-  }, [router])
+  }, [isLoading, isAuthenticated, user, router])
 
-  const handleLogout = () => {
-    localStorage.removeItem("userInfo")
+  const handleLogout = async () => {
+    debugLog('로그아웃 시도');
+    await logout()
+    debugLog('로그아웃 완료, 메인 페이지로 리디렉션');
     router.push("/")
   }
 
-  if (!userInfo) {
+  if (isLoading || !userInfo) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
