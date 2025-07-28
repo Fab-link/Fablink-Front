@@ -93,7 +93,3 @@ export const debugLog = (...args: any[]) => {
         console.log('[DEBUG]', ...args)
     }
 }
-
-export const getApiUrl = (endpoint: String = '') => {
-    return `${config.apiUrl}${endpoint}`
-}
