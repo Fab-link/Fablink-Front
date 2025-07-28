@@ -2,12 +2,12 @@ import { config, debugLog, isProduction } from '@/lib/config'
 import { set } from 'date-fns'
 
 class ApiClient {
-    private baseUrl: string
+    private apiUrl: string
     private timeout: number
     private defaultHeaders: Record<string, string>
 
     constructor() {
-        this.baseUrl = config.apiUrl
+        this.apiUrl = config.apiUrl
         this.timeout = config.apiTimeout
         this.defaultHeaders = {
             'Content-Type': 'application/json',
@@ -15,7 +15,7 @@ class ApiClient {
         }
 
         debugLog('API Client initialized with base URL:', {
-            baseUrl: this.baseUrl,
+            apiUrl: this.apiUrl,
             timeout: this.timeout,
             env: config.env
         })
@@ -33,7 +33,7 @@ class ApiClient {
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
-        const url = `${this.baseUrl}${endpoint}`
+        const url = `${this.apiUrl}${endpoint}`
 
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), this.timeout)
@@ -88,7 +88,7 @@ class ApiClient {
     async uploadFile<T>(endpoint: string, fromData: FormData): Promise<T> {
         const token = localStorage.getItem('authToken')
 
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await fetch(`${this.apiUrl}${endpoint}`, {
             method: 'POST',
             headers: {
                 ...(token && { Authorization: `Token ${token}` }),
