@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prelocal": "node scripts/setup-env.js local",
+    "local": "next dev",
+    "predev": "node scripts/setup-env.js dev", 
+    "dev": "next dev",
+    "preprod": "node scripts/setup-env.js prod",
+    "prod": "next build && next start",
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
