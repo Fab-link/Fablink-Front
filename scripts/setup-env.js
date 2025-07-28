@@ -35,7 +35,7 @@ try {
             
             // API URL 설정 (로컬 개발 서버)
             .replace(/NEXT_PUBLIC_API_URL=.*/g, 'NEXT_PUBLIC_API_URL=http://localhost:8000')
-            .replace(/API_URL=.*/g, 'API_URL=http://localhost:8000')
+            .replace(/API_URL=.*/g, 'API_URL=http://localhost:8000/api')
             
             // 디버그 모드 활성화
             .replace(/NEXT_PUBLIC_DEBUG=.*/g, 'NEXT_PUBLIC_DEBUG=true')
