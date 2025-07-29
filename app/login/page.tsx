@@ -11,11 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectValue, SelectTrigger } from "@/components/ui/select"
 import { Shirt, User, Factory, Contact } from "lucide-react"
 import Link from "next/link"
-import { resolve } from "path"
-import { SelectTrigger } from "@radix-ui/react-select"
 
 interface LoginFormProps {
   redirectPath?: string
@@ -90,6 +88,7 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
+                {/*아이디 입력란*/}
                 <Label htmlFor="id">아이디 *</Label>
                 <Input
                   id="id"
@@ -100,7 +99,7 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                   required
                 />
               </div>
-
+              {/*비밀번호 입력란*/}
               <div className="space-y-2">
                 <Label htmlFor="id">비밀번호 *</Label>
                 <Input
@@ -112,10 +111,10 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                   required
                 />
               </div>
-
+              {/*사용자 타입 입력란*/}
               <div className="space-y-2">
                 <Label htmlFor="userType">사용자 타입 *</Label>
-                <Select 
+                <Select
                   value={formData.userType}
                   onValueChange={(value) => setFormData({ ...formData, userType: value })}
                 >
@@ -131,16 +130,16 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                     </SelectItem>
                     <SelectItem value="factory">
                       <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4" />
+                        <Factory className="h-4 w-4" />
                         <span>공장</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
+              {/*로그인 버튼*/}
               <Button type="submit" disabled={!isFormValid || isLoading} className="w-full">
-                {isLoading ? (
+                { isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     로그인 중...
@@ -150,39 +149,12 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                 )}
               </Button>
 
-
             </form>
           </CardContent>
         </Card>
-
       </div>
     </div>
   )
 
 }
 
-// import React, { useEffect } from 'react';
-// import LoginForm from '@/components/auth/LoginForm';
-// import Link from 'next/link';
-// import { useAuthContext } from '@/contexts/AuthContext';
-// import { useRouter, useSearchParams } from 'next/navigation';
-// import { debugLog } from '@/lib/config';
-
-// export default function LoginPage() {
-//   const { isAuthenticated, user } = useAuthContext();
-//   const router = useRouter();
-//   const searchParams = useSearchParams();
-//   const fromPath = searchParams.get('from') || '/dashboard';
-
-//   useEffect(() => {
-//     debugLog('로그인 페이지 마운트:', { isAuthenticated, user, fromPath });
-    
-//     // 이미 로그인된 경우 원래 가려던 페이지로 리디렉션
-//     if (isAuthenticated && user) {
-//       debugLog('이미 로그인됨, 리디렉션:', { to: fromPath });
-//       router.push(fromPath);
-//     }
-//   }, [isAuthenticated, user, router, fromPath]);
-
-  
-// }
