@@ -1,5 +1,5 @@
 import { config, debugLog, isProduction } from '@/lib/config'
-import { set } from 'date-fns'
+import { Tokens } from '@/types/auth'
 
 class ApiClient {
     private apiUrl: string
@@ -22,9 +22,16 @@ class ApiClient {
     }
 
     private getAuthHeaders(): Record<string, string> {
-        const token = localStorage.getItem('authToken')
-        if (token) {
-            return { Authorization: `Token ${token}` }
+        const tokensJson = localStorage.getItem('authTokens')
+        if (tokensJson) {
+            try {
+                const tokens: Tokens = JSON.parse(tokensJson)
+                return { Authorization: `Bearer ${tokens.access}` }
+            } catch (error) {
+                debugLog('토큰 파싱 오류:', error)
+                // 잘못된 토큰 데이터 제거
+                localStorage.removeItem('authTokens')
+            }
         }
         return {}
     }
@@ -49,22 +56,43 @@ class ApiClient {
         }
 
         try {
+            debugLog('API 요청:', { method: options.method || 'GET', url, headers: config.headers })
+            
             const response = await fetch(url, config)
+            clearTimeout(timeoutId)
+
+            debugLog('API 응답:', { status: response.status, statusText: response.statusText })
 
             if (!response.ok) {
-                const errorText = await response.text()
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+                let errorMessage = `HTTP error! status: ${response.status}`
+                try {
+                    const errorData = await response.json()
+                    errorMessage = errorData.message || errorData.detail || errorMessage
+                    debugLog('API 오류 응답:', errorData)
+                } catch {
+                    const errorText = await response.text()
+                    errorMessage = errorText || errorMessage
+                }
+                throw new Error(errorMessage)
             }
 
-            return await response.json() 
+            const data = await response.json()
+            debugLog('API 성공 응답:', data)
+            return data
         } catch (error) {
-            console.error('API request failed:', error)
+            clearTimeout(timeoutId)
+            debugLog('API 요청 실패:', error)
             throw error
         }
     }
 
     async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
-        return this.request<T>(endpoint, { method: 'GET' })
+        let url = endpoint
+        if (params) {
+            const searchParams = new URLSearchParams(params)
+            url += `?${searchParams.toString()}`
+        }
+        return this.request<T>(url, { method: 'GET' })
     }
 
     async post<T>(endpoint: string, body: Record<string, any>): Promise<T> {
@@ -85,21 +113,38 @@ class ApiClient {
         return this.request<T>(endpoint, { method: 'DELETE' })
     }
 
-    async uploadFile<T>(endpoint: string, fromData: FormData): Promise<T> {
-        const token = localStorage.getItem('authToken')
+    async uploadFile<T>(endpoint: string, formData: FormData): Promise<T> {
+        const tokensJson = localStorage.getItem('authTokens')
+        let authHeaders = {}
+        
+        if (tokensJson) {
+            try {
+                const tokens: Tokens = JSON.parse(tokensJson)
+                authHeaders = { Authorization: `Bearer ${tokens.access}` }
+            } catch (error) {
+                debugLog('파일 업로드 시 토큰 파싱 오류:', error)
+            }
+        }
 
         const response = await fetch(`${this.apiUrl}${endpoint}`, {
             method: 'POST',
             headers: {
-                ...(token && { Authorization: `Token ${token}` }),
+                ...authHeaders,
                 // Content-Type을 설정하지 않음 (브라우저가 자동으로 multipart/form-data 설정)
             },
-            body: fromData
+            body: formData
         })
 
         if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`File upload failed! status: ${response.status}, message: ${errorText}`)
+            let errorMessage = `File upload failed! status: ${response.status}`
+            try {
+                const errorData = await response.json()
+                errorMessage = errorData.message || errorData.detail || errorMessage
+            } catch {
+                const errorText = await response.text()
+                errorMessage = errorText || errorMessage
+            }
+            throw new Error(errorMessage)
         }
 
         return await response.json()

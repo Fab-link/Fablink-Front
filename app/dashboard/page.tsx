@@ -21,13 +21,16 @@ export default function DashboardPage() {
     
     if (!isLoading) {
       if (isAuthenticated && user) {
-        // 인증 컨텍스트의 사용자 정보를 사용
+        debugLog('받은 사용자 데이터:', user); // 실제 사용자 데이터 확인
+        
+        // 백엔드 응답 필드명에 맞게 매핑 (camelCase)
         const newUserInfo = {
-          id: user.username,
-          userType: user.user_type,
+          id: user.userId, // camelCase 필드 사용
+          name: user.name,
+          userType: user.userType, // camelCase 필드 사용
           loginTime: new Date().toISOString()
         };
-        debugLog('사용자 정보 설정:', newUserInfo);
+        debugLog('설정할 사용자 정보:', newUserInfo);
         setUserInfo(newUserInfo);
       } else {
         debugLog('인증되지 않음, 로그인 페이지로 리디렉션');
@@ -74,7 +77,7 @@ export default function DashboardPage() {
                       <User className="h-5 w-5" />
                       <span>{userInfo.userType === "designer" ? "디자이너" : "공장"} 메뉴</span>
                     </SheetTitle>
-                    <SheetDescription>{userInfo.id}님, 안녕하세요!</SheetDescription>
+                    <SheetDescription>{userInfo.name || userInfo.id}님, 안녕하세요!</SheetDescription>
                   </SheetHeader>
 
                   <div className="mt-8 space-y-4">
@@ -132,7 +135,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                {userInfo.userType === "designer" ? "디자이너" : "공장"}: {userInfo.id}
+                {userInfo.userType === "designer" ? "디자이너" : "공장"}: {userInfo.name || userInfo.id}
               </span>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
@@ -145,7 +148,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">안녕하세요, {userInfo.id}님!</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">안녕하세요, {userInfo.name || userInfo.id}님!</h2>
           <p className="text-gray-600">
             {userInfo.userType === "designer"
               ? "새로운 의류 제작을 시작하거나 기존 주문을 확인해보세요."
@@ -236,6 +239,9 @@ export default function DashboardPage() {
               <div className="space-y-2 text-sm">
                 <p>
                   <span className="font-medium">사용자 ID:</span> {userInfo.id}
+                </p>
+                <p>
+                  <span className="font-medium">이름:</span> {userInfo.name}
                 </p>
                 <p>
                   <span className="font-medium">사용자 타입:</span>{" "}

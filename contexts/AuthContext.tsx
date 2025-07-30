@@ -2,19 +2,20 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { User, AuthState } from '@/types/auth';
+import { User, Tokens } from '@/types/auth';
 
 // 인증 컨텍스트 타입
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  tokens: Tokens | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<any>;
+  login: (user_id: string, password: string, user_type?: string) => Promise<any>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshAuth: () => Promise<void>;
+  refreshTokens: () => Promise<Tokens>;
 }
 
 // 인증 컨텍스트 생성

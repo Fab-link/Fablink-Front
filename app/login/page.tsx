@@ -21,16 +21,16 @@ interface LoginFormProps {
 
 export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProps) {
   const router = useRouter()
-  const { login, error, isAuthenticated, user } = useAuthContext();
+  const { login, error, isAuthenticated, user, clearError } = useAuthContext();
 
-  const [ formData, setFormData ] = useState({
-    id: "",
+  const [formData, setFormData] = useState({
+    user_id: "",
     password: "",
-    userType: ""
+    user_type: ""
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<String | null>(null);
-  const isFormValid = formData.id && formData.password && formData.userType
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isFormValid = formData.user_id && formData.password && formData.user_type
 
   // 진입시 인증 상태에 따라 경로 이동
   useEffect(() => {
@@ -40,27 +40,63 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
     }
   }, [isAuthenticated, user, router, redirectPath])
 
+  // 인증 에러 상태 동기화
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error)
+    }
+  }, [error])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.id || !formData.password || !formData.userType) {
-      setErrorMessage('아이디, 비밀번호, 사용자 타입 모두 입력 해주세요.')
+    if (!formData.user_id || !formData.password || !formData.user_type) {
+      setErrorMessage('사용자 ID, 비밀번호, 사용자 타입을 모두 입력해주세요.')
       return
     }
 
     try {
       setIsLoading(true)
       setErrorMessage(null)
+      clearError() // 이전 에러 초기화
 
-      debugLog('로그인 시도:', { id: formData.id, redirectPath })
-      const response = await login(formData.id, formData.password)
-      debugLog('로그인 응답:', response)
+      debugLog('로그인 시도:', { user_id: formData.user_id, user_type: formData.user_type, redirectPath })
+      
+      const response = await login(formData.user_id, formData.password, formData.user_type)
+      
+      debugLog('로그인 성공:', response)
+      
+      // 로그인 성공 시 리디렉션은 useEffect에서 처리됨
     } catch (error: any) {
       debugLog('로그인 에러:', error)
-      setErrorMessage(error.message || '로그인에 실패했습니다. 다시 시도해주세요.')
+      
+      let errorMsg = '로그인에 실패했습니다. 다시 시도해주세요.'
+      
+      // 백엔드에서 오는 구체적인 에러 메시지 처리
+      if (error.message) {
+        if (error.message.includes('user_id')) {
+          errorMsg = '존재하지 않는 사용자 ID입니다.'
+        } else if (error.message.includes('password')) {
+          errorMsg = '비밀번호가 올바르지 않습니다.'
+        } else if (error.message.includes('user_type')) {
+          errorMsg = '사용자 타입이 일치하지 않습니다.'
+        } else {
+          errorMsg = error.message
+        }
+      }
+      
+      setErrorMessage(errorMsg)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value })
+    // 입력 시 에러 메시지 초기화
+    if (errorMessage) {
+      setErrorMessage(null)
+      clearError()
     }
   }
 
@@ -82,41 +118,50 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
         <Card>
           <CardHeader>
             <CardTitle>로그인 정보</CardTitle>
-            <CardDescription>아이디, 비밀번호, 사용자 타입을 입력해주세요</CardDescription>
+            <CardDescription>사용자 ID, 비밀번호, 사용자 타입을 입력해주세요</CardDescription>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 에러 메시지 표시 */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                  {errorMessage}
+                </div>
+              )}
+
               <div className="space-y-2">
-                {/*아이디 입력란*/}
-                <Label htmlFor="id">아이디 *</Label>
+                {/* 사용자 ID 입력란 */}
+                <Label htmlFor="user_id">사용자 ID *</Label>
                 <Input
-                  id="id"
+                  id="user_id"
                   type="text"
-                  placeholder="아이디를 입력하세요"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value})}
+                  placeholder="사용자 ID를 입력하세요"
+                  value={formData.user_id}
+                  onChange={(e) => handleInputChange('user_id', e.target.value)}
                   required
                 />
               </div>
-              {/*비밀번호 입력란*/}
+              
+              {/* 비밀번호 입력란 */}
               <div className="space-y-2">
-                <Label htmlFor="id">비밀번호 *</Label>
+                <Label htmlFor="password">비밀번호 *</Label>
                 <Input
                   id="password"
                   type="password"
                   placeholder="비밀번호를 입력하세요"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value})}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   required
                 />
               </div>
-              {/*사용자 타입 입력란*/}
+              
+              {/* 사용자 타입 입력란 */}
               <div className="space-y-2">
-                <Label htmlFor="userType">사용자 타입 *</Label>
+                <Label htmlFor="user_type">사용자 타입 *</Label>
                 <Select
-                  value={formData.userType}
-                  onValueChange={(value) => setFormData({ ...formData, userType: value })}
+                  value={formData.user_type}
+                  onValueChange={(value) => handleInputChange('user_type', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="사용자 타입을 선택하세요" />
@@ -137,9 +182,10 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                   </SelectContent>
                 </Select>
               </div>
-              {/*로그인 버튼*/}
+              
+              {/* 로그인 버튼 */}
               <Button type="submit" disabled={!isFormValid || isLoading} className="w-full">
-                { isLoading ? (
+                {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     로그인 중...
@@ -149,12 +195,20 @@ export default function LoginPage({ redirectPath = '/dashboard' }: LoginFormProp
                 )}
               </Button>
 
+              {/* 추가 링크 */}
+              <div className="text-center text-sm text-gray-600">
+                <p>
+                  계정이 없으신가요?{' '}
+                  <Link href="/register" className="text-blue-600 hover:text-blue-500">
+                    회원가입
+                  </Link>
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>
       </div>
     </div>
   )
-
 }
 
