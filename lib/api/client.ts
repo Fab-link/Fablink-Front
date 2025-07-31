@@ -56,7 +56,7 @@ class ApiClient {
         }
 
         try {
-            debugLog('API 요청:', { method: options.method || 'GET', url, headers: config.headers })
+            debugLog('API 요청:', { method: options.method || 'GET', url, headers: config.headers, body: options.body })
             
             const response = await fetch(url, config)
             clearTimeout(timeoutId)
