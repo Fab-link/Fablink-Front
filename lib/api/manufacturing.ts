@@ -7,6 +7,8 @@ export interface ProductData {
   season?: string;
   target_customer?: string;
   concept?: string;
+  fabric?: string;
+  material?: string;
   image_path?: File | null;
 }
 
