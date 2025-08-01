@@ -11,11 +11,15 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, ArrowRight, Upload, X, ImageIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { manufacturingApi } from "@/lib/api/manufacturing"
+
 export default function ManufacturingStep2() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [pointDescription, setPointDescription] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -26,18 +30,35 @@ export default function ManufacturingStep2() {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Store form data
-    const existingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
-    localStorage.setItem(
-      "manufacturingData",
-      JSON.stringify({
-        ...existingData,
-        step2: { files: uploadedFiles.length, pointDescription },
-      }),
-    )
-    router.push("/manufacturing/ai-analysis")
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = manufacturingData.productId
+
+      if (!productId) {
+        setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
+        setIsLoading(false)
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("detail", pointDescription)
+      if (uploadedFiles.length > 0) {
+        formData.append("image_path", uploadedFiles[0])
+      }
+
+      await manufacturingApi.updateProduct(productId, formData)
+
+      router.push("/manufacturing/ai-analysis")
+    } catch (error) {
+      setErrorMessage("데이터 저장 중 오류가 발생했습니다.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleBack = () => {

@@ -1,5 +1,6 @@
 import { config, debugLog, isProduction } from '@/lib/config'
 import { Tokens } from '@/types/auth'
+import Cookies from 'js-cookie';
 
 class ApiClient {
     private apiUrl: string
@@ -22,18 +23,11 @@ class ApiClient {
     }
 
     private getAuthHeaders(): Record<string, string> {
-        const tokensJson = localStorage.getItem('authTokens')
-        if (tokensJson) {
-            try {
-                const tokens: Tokens = JSON.parse(tokensJson)
-                return { Authorization: `Bearer ${tokens.access}` }
-            } catch (error) {
-                debugLog('토큰 파싱 오류:', error)
-                // 잘못된 토큰 데이터 제거
-                localStorage.removeItem('authTokens')
-            }
+        const token = Cookies.get('authToken');
+        if (token) {
+            return { Authorization: `Bearer ${token}` };
         }
-        return {}
+        return {};
     }
 
     private async request<T>(
@@ -113,7 +107,7 @@ class ApiClient {
         return this.request<T>(endpoint, { method: 'DELETE' })
     }
 
-    async uploadFile<T>(endpoint: string, formData: FormData): Promise<T> {
+    async uploadFile<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' | 'PATCH' = 'POST'): Promise<T> {
         const tokensJson = localStorage.getItem('authTokens')
         let authHeaders = {}
         
@@ -127,7 +121,7 @@ class ApiClient {
         }
 
         const response = await fetch(`${this.apiUrl}${endpoint}`, {
-            method: 'POST',
+            method: method,
             headers: {
                 ...authHeaders,
                 // Content-Type을 설정하지 않음 (브라우저가 자동으로 multipart/form-data 설정)

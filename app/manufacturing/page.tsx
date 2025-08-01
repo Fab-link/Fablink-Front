@@ -13,23 +13,36 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowRight, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { manufacturingApi } from "@/lib/api/manufacturing"
+
 export default function ManufacturingStep1() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    productName: "",
+    name: "",
     season: "",
-    targetCustomer: "",
+    target_customer: "",
     concept: "",
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Store form data in localStorage or context
-    localStorage.setItem("manufacturingData", JSON.stringify({ step1: formData }))
-    router.push("/manufacturing/design-upload")
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      const response = await manufacturingApi.createProduct(formData)
+      localStorage.setItem("manufacturingData", JSON.stringify({ productId: response.id }))
+      router.push("/manufacturing/design-upload")
+    } catch (error) {
+      setErrorMessage("제품 정보 저장 중 오류가 발생했습니다.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const isFormValid = formData.productName && formData.season && formData.targetCustomer && formData.concept
+  const isFormValid = formData.name && formData.season && formData.target_customer && formData.concept
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -65,8 +78,8 @@ export default function ManufacturingStep1() {
                 <Input
                   id="productName"
                   placeholder="예: 여성용 캐주얼 블라우스"
-                  value={formData.productName}
-                  onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
               </div>
@@ -80,7 +93,7 @@ export default function ManufacturingStep1() {
                   <SelectContent>
                     <SelectItem value="spring">봄 (Spring)</SelectItem>
                     <SelectItem value="summer">여름 (Summer)</SelectItem>
-                    <SelectItem value="fall">가을 (Fall)</SelectItem>
+                    <SelectItem value="autumn">가을 (Fall)</SelectItem>
                     <SelectItem value="winter">겨울 (Winter)</SelectItem>
                     <SelectItem value="all-season">사계절 (All Season)</SelectItem>
                   </SelectContent>
@@ -90,8 +103,8 @@ export default function ManufacturingStep1() {
               <div className="space-y-2">
                 <Label htmlFor="targetCustomer">타겟 고객층 *</Label>
                 <Select
-                  value={formData.targetCustomer}
-                  onValueChange={(value) => setFormData({ ...formData, targetCustomer: value })}
+                  value={formData.target_customer}
+                  onValueChange={(value) => setFormData({ ...formData, target_customer: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="타겟 고객층을 선택해주세요" />
