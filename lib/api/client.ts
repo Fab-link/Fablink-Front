@@ -107,7 +107,7 @@ class ApiClient {
         return this.request<T>(endpoint, { method: 'DELETE' })
     }
 
-    async uploadFile<T>(endpoint: string, formData: FormData): Promise<T> {
+    async uploadFile<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' | 'PATCH' = 'POST'): Promise<T> {
         const tokensJson = localStorage.getItem('authTokens')
         let authHeaders = {}
         
@@ -121,7 +121,7 @@ class ApiClient {
         }
 
         const response = await fetch(`${this.apiUrl}${endpoint}`, {
-            method: 'POST',
+            method: method,
             headers: {
                 ...authHeaders,
                 // Content-Type을 설정하지 않음 (브라우저가 자동으로 multipart/form-data 설정)

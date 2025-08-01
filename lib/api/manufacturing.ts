@@ -30,11 +30,7 @@ export const manufacturingApi = {
    * @returns 업데이트된 제품 정보
    */
   updateProduct: async (productId: number, formData: FormData) => {
-    // FormData를 사용하는 경우, apiClient의 uploadFile 메서드나
-    // 별도의 fetch 로직을 사용해야 합니다. 여기서는 일반적인 PATCH를 가정하고,
-    // apiClient에 파일 업로드를 위한 메서드가 필요할 수 있습니다.
-    // 우선 기존 post 메서드를 활용하되, 실제로는 파일 업로드용 메서드를 호출해야 합니다.
-    return apiClient.post<ProductData>(`/manufacturing/products/${productId}/`, formData);
+    return apiClient.uploadFile<ProductData>(`/manufacturing/products/${productId}/`, formData, 'PATCH');
   },
   
   /**

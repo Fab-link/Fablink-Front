@@ -46,7 +46,7 @@ export default function ManufacturingStep2() {
       }
 
       const formData = new FormData()
-      formData.append("concept", pointDescription)
+      formData.append("detail", pointDescription)
       if (uploadedFiles.length > 0) {
         formData.append("image_path", uploadedFiles[0])
       }
