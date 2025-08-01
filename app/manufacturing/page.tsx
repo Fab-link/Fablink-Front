@@ -93,7 +93,7 @@ export default function ManufacturingStep1() {
                   <SelectContent>
                     <SelectItem value="spring">봄 (Spring)</SelectItem>
                     <SelectItem value="summer">여름 (Summer)</SelectItem>
-                    <SelectItem value="fall">가을 (Fall)</SelectItem>
+                    <SelectItem value="autumn">가을 (Fall)</SelectItem>
                     <SelectItem value="winter">겨울 (Winter)</SelectItem>
                     <SelectItem value="all-season">사계절 (All Season)</SelectItem>
                   </SelectContent>

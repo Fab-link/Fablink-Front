@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, AuthState, Tokens, LoginRequest } from '@/types/auth';
 import { authApi } from '@/lib/api/auth';
 import { debugLog } from '@/lib/config';
+import Cookies from 'js-cookie';
 
 /**
  * 인증 관련 상태와 함수를 제공하는 커스텀 훅
@@ -21,18 +22,26 @@ export function useAuth() {
    * 로컬 스토리지에서 인증 정보 로드
    */
   const loadAuthFromStorage = useCallback(async () => {
+    debugLog('loadAuthFromStorage 호출됨');
     try {
-      const tokensJson = localStorage.getItem('authTokens');
+      const authToken = Cookies.get('authToken');
+      const refreshToken = Cookies.get('refreshToken');
       const userJson = localStorage.getItem('userData');
 
-      if (tokensJson && userJson) {
-        const tokens: Tokens = JSON.parse(tokensJson);
+      debugLog('쿠키 및 로컬 스토리지 값:', { authToken: authToken ? '존재함' : '없음', refreshToken: refreshToken ? '존재함' : '없음', userJson: userJson ? '존재함' : '없음' });
+
+      if (authToken && refreshToken && userJson) {
+        const tokens: Tokens = { access: authToken, refresh: refreshToken };
         const user: User = JSON.parse(userJson);
         
+        debugLog('토큰 및 사용자 데이터 파싱 완료', { user, tokens });
+
         // 토큰 유효성 검증
         const isValid = await authApi.validateToken();
+        debugLog('토큰 유효성 검증 결과:', isValid);
         
         if (isValid) {
+          debugLog('토큰 유효함, 인증 상태 설정');
           setAuthState({
             user,
             tokens,
@@ -41,9 +50,11 @@ export function useAuth() {
             error: null,
           });
         } else {
+          debugLog('토큰 유효하지 않음, 갱신 시도');
           // 토큰이 유효하지 않은 경우 토큰 갱신 시도
           try {
             const newTokens = await authApi.refreshToken();
+            debugLog('토큰 갱신 성공:', newTokens);
             setAuthState({
               user,
               tokens: newTokens,
@@ -58,6 +69,7 @@ export function useAuth() {
           }
         }
       } else {
+        debugLog('필요한 인증 정보가 부족함, 비인증 상태로 설정');
         setAuthState(prev => ({
           ...prev,
           isLoading: false,
@@ -96,6 +108,10 @@ export function useAuth() {
       const response = await authApi.login(loginData);
       
       if (response.success) {
+        Cookies.set('authToken', response.tokens.access, { expires: 1 }); // 1일 후 만료
+        Cookies.set('refreshToken', response.tokens.refresh, { expires: 7 }); // 7일 후 만료
+        localStorage.setItem('userData', JSON.stringify(response.user));
+
         setAuthState({
           user: response.user,
           tokens: response.tokens,
@@ -147,6 +163,9 @@ export function useAuth() {
       setAuthState(prev => ({ ...prev, isLoading: true }));
       
       await authApi.logout();
+      Cookies.remove('authToken');
+      Cookies.remove('refreshToken');
+      localStorage.removeItem('userData');
       
       setAuthState({
         user: null,
@@ -181,7 +200,13 @@ export function useAuth() {
    */
   const refreshTokens = async () => {
     try {
-      const newTokens = await authApi.refreshToken();
+      const refreshToken = Cookies.get('refreshToken');
+      if (!refreshToken) {
+        throw new Error('Refresh token not found');
+      }
+      const newTokens = await authApi.refreshToken(refreshToken);
+      Cookies.set('authToken', newTokens.access, { expires: 1 });
+      Cookies.set('refreshToken', newTokens.refresh, { expires: 7 });
       setAuthState(prev => ({
         ...prev,
         tokens: newTokens,
