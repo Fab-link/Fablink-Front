@@ -22,7 +22,7 @@ export const authApi = {
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     debugLog('로그인 시도:', { user_id: credentials.user_id, user_type: credentials.user_type });
     try {
-      const response = await apiClient.post<AuthResponse>('/accounts/login/', credentials);
+      const response = await apiClient.post<AuthResponse>('/auth/login/', credentials);
       
       // 로그인 성공 시 토큰 저장
       if (response.success && response.tokens) {
@@ -129,7 +129,7 @@ export const authApi = {
       }
 
       const tokens: Tokens = JSON.parse(tokensJson);
-      const response = await apiClient.post<{ access: string; refresh: string }>('/accounts/token/refresh/', {
+      const response = await apiClient.post<{ access: string; refresh: string }>('/auth/token/refresh/', {
         refresh: tokens.refresh
       });
 
