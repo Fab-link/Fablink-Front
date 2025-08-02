@@ -46,3 +46,19 @@ export const manufacturingApi = {
     });
   },
 };
+
+export interface QuantityScheduleData {
+  size: string;
+  quantity: number;
+  due_date: string;
+}
+
+export const updateQuantitySchedule = async (productId: number, data: QuantityScheduleData) => {
+  return apiClient.request<{message: string; data: QuantityScheduleData}>(
+    `/manufacturing/products/${productId}/quantity-schedule/`, 
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  );
+};

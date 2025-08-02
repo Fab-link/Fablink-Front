@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,26 +14,54 @@ import { ArrowLeft, ArrowRight, CalendarIcon, Package, Clock, Ruler } from "luci
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
+import { updateQuantitySchedule } from '@/lib/api/manufacturing'
+import { toast } from 'sonner'
 
-export default function ManufacturingStep5() {
+export default function QuantitySchedulePage() {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)  // ✅ 컴포넌트 내부로 이동
   const [formData, setFormData] = useState({
     sampleSize: "",
     totalQuantity: "",
     deliveryDate: undefined as Date | undefined,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {  // ✅ async 추가
     e.preventDefault()
-    const existingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
-    localStorage.setItem(
-      "manufacturingData",
-      JSON.stringify({
-        ...existingData,
-        step5: formData,
-      }),
-    )
-    router.push("/manufacturing/final-notes")
+    setIsLoading(true)
+
+    try {
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = manufacturingData.productId
+
+      // DB 저장 (productId가 있을 때만)
+      if (productId) {
+        const dbData = {
+          size: formData.sampleSize.toUpperCase(),
+          quantity: parseInt(formData.totalQuantity),
+          due_date: formData.deliveryDate ? format(formData.deliveryDate, 'yyyy-MM-dd') : ''
+        }
+        
+        await updateQuantitySchedule(productId, dbData)
+        toast.success('수량 및 일정이 저장되었습니다.')
+      }
+      
+      // 기존 localStorage 로직 유지
+      localStorage.setItem(
+        "manufacturingData",
+        JSON.stringify({
+          ...manufacturingData,  // ✅ 중복 제거
+          step5: formData,
+        }),
+      )
+      
+      router.push("/manufacturing/final-notes")
+    } catch (error) {
+      console.error('저장 오류:', error)
+      toast.error('저장에 실패했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleBack = () => {
