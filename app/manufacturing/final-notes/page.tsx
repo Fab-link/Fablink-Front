@@ -11,29 +11,57 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, CheckCircle, FileText, Send } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { manufacturingApi } from "@/lib/api/manufacturing"
+
 export default function ManufacturingStep6() {
   const router = useRouter()
   const [finalNotes, setFinalNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setErrorMessage(null)
 
-    // Store final data
-    const existingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
-    const finalData = {
-      ...existingData,
-      step6: { finalNotes },
-      submittedAt: new Date().toISOString(),
+    try {
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = manufacturingData.productId
+
+      console.log('Final notes submission:', { productId, finalNotes })
+
+      if (!productId) {
+        setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
+        setIsSubmitting(false)
+        return
+      }
+
+      // 백엔드에 메모 저장
+      if (finalNotes.trim()) {
+        await manufacturingApi.updateProductJson(productId, {
+          memo: finalNotes.trim()
+        })
+      }
+
+      // localStorage에 최종 데이터 저장
+      const finalData = {
+        ...manufacturingData,
+        memo: finalNotes,
+        step6: { finalNotes },
+        submittedAt: new Date().toISOString(),
+      }
+      localStorage.setItem("manufacturingData", JSON.stringify(finalData))
+
+      console.log('Final data saved:', finalData)
+
+      // 작업 지시서 페이지로 이동
+      router.push("/manufacturing/work-order")
+    } catch (error) {
+      console.error('Submit error:', error)
+      setErrorMessage(`데이터 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    } finally {
+      setIsSubmitting(false)
     }
-    localStorage.setItem("manufacturingData", JSON.stringify(finalData))
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Redirect to success page or dashboard
-    router.push("/manufacturing/work-order")
   }
 
   const handleBack = () => {
@@ -123,6 +151,13 @@ export default function ManufacturingStep6() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800 text-sm">{errorMessage}</p>
+              </div>
+            )}
 
             {/* Navigation */}
             <div className="flex justify-between pt-4">

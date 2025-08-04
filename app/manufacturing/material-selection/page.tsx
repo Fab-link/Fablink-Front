@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, ArrowRight, MessageCircle, Check, FactoryIcon as Fabric, Package } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { manufacturingApi } from "@/lib/api/manufacturing"
+import { debugLog } from "@/lib/config"
 
 export default function ManufacturingStep4() {
   const router = useRouter()
@@ -21,6 +23,8 @@ export default function ManufacturingStep4() {
   const [showAccessoryChat, setShowAccessoryChat] = useState(false)
   const [fabricSelected, setFabricSelected] = useState(false)
   const [accessorySelected, setAccessorySelected] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // AI 추천 원단 목록
   const recommendedFabrics = [
@@ -30,23 +34,60 @@ export default function ManufacturingStep4() {
   ]
 
   // AI 추천 부자재 목록
-  const recommendedAccessories = [
+  const recommendedMaterials = [
     { code: "AC001", name: "플라스틱 단추", size: "15mm", color: "화이트", quantity: "10개" },
     { code: "AC002", name: "지퍼", length: "20cm", type: "은닉지퍼", color: "네이비" },
     { code: "AC003", name: "바이어스 테이프", width: "12mm", color: "네이비", length: "2m" },
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    debugLog('handleSubmit 함수 시작');
     e.preventDefault()
-    const existingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
-    localStorage.setItem(
-      "manufacturingData",
-      JSON.stringify({
-        ...existingData,
-        step4: { fabricCode, accessoryCode },
-      }),
-    )
-    router.push("/manufacturing/quantity-schedule")
+    debugLog('handleSubmit 호출됨');
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = manufacturingData.productId
+      debugLog('productId:', productId);
+
+      if (!productId) {
+        setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
+        setIsLoading(false)
+        debugLog('제품 ID 없음, API 호출 중단');
+        return
+      }
+
+      const selectedFabric = recommendedFabrics.find(f => f.code === fabricCode);
+      const selectedMaterial = recommendedMaterials.find(a => a.code === accessoryCode);
+      debugLog('선택된 원단/부자재:', { selectedFabric, selectedMaterial });
+
+      const productDataToUpdate = {
+        fabric: fabricCode ? (selectedFabric ? JSON.stringify(selectedFabric) : JSON.stringify({ code: fabricCode })) : null,
+        material: accessoryCode ? (selectedMaterial ? JSON.stringify(selectedMaterial) : JSON.stringify({ code: accessoryCode })) : null,
+      };
+      debugLog('업데이트할 제품 데이터:', productDataToUpdate);
+
+      await manufacturingApi.updateProductJson(productId, productDataToUpdate);
+      debugLog('API 호출 성공');
+
+      localStorage.setItem(
+        "manufacturingData",
+        JSON.stringify({
+          ...manufacturingData,
+          step4: { fabricCode, accessoryCode },
+        }),
+      )
+      router.push("/manufacturing/quantity-schedule")
+    } catch (error) {
+      console.error("Error updating product with fabric/material:", error);
+      setErrorMessage("재료 정보 저장 중 오류가 발생했습니다.")
+      debugLog('API 호출 실패:', error);
+    } finally {
+      setIsLoading(false)
+      debugLog('handleSubmit 종료');
+    }
   }
 
   const handleBack = () => {
@@ -54,18 +95,21 @@ export default function ManufacturingStep4() {
   }
 
   const selectFabric = (code: string) => {
+    debugLog('selectFabric 호출됨, code:', code);
     setFabricCode(code)
     setFabricSelected(true)
     setShowFabricChat(false)
   }
 
   const selectAccessory = (code: string) => {
+    debugLog('selectAccessory 호출됨, code:', code);
     setAccessoryCode(code)
     setAccessorySelected(true)
     setShowAccessoryChat(false)
   }
 
   const isFormValid = fabricSelected && accessorySelected
+  debugLog('isFormValid:', isFormValid);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -273,7 +317,7 @@ export default function ManufacturingStep4() {
                     )}
 
                     <div className="space-y-2">
-                      {recommendedAccessories.map((accessory) => (
+                      {recommendedMaterials.map((accessory) => (
                         <div
                           key={accessory.code}
                           className={`p-3 border rounded-lg cursor-pointer transition-colors ${

@@ -13,23 +13,51 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowRight, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { manufacturingApi } from "@/lib/api/manufacturing"
+
 export default function ManufacturingStep1() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    productName: "",
+    name: "",
     season: "",
-    targetCustomer: "",
+    target_customer: "",
     concept: "",
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Store form data in localStorage or context
-    localStorage.setItem("manufacturingData", JSON.stringify({ step1: formData }))
-    router.push("/manufacturing/design-upload")
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      console.log('Submitting form data:', formData)
+      const response = await manufacturingApi.createProduct(formData)
+      console.log('Create product response:', response)
+      
+      if (!response.id) {
+        throw new Error('제품 ID가 반환되지 않았습니다.')
+      }
+      
+      const manufacturingData = {
+        productId: response.id,
+        ...formData
+      }
+      
+      localStorage.setItem("manufacturingData", JSON.stringify(manufacturingData))
+      console.log('Saved to localStorage:', manufacturingData)
+      
+      router.push("/manufacturing/design-upload")
+    } catch (error) {
+      console.error('Submit error:', error)
+      setErrorMessage(`제품 정보 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const isFormValid = formData.productName && formData.season && formData.targetCustomer && formData.concept
+  const isFormValid = formData.name && formData.season && formData.target_customer && formData.concept
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -65,8 +93,8 @@ export default function ManufacturingStep1() {
                 <Input
                   id="productName"
                   placeholder="예: 여성용 캐주얼 블라우스"
-                  value={formData.productName}
-                  onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
               </div>
@@ -80,7 +108,7 @@ export default function ManufacturingStep1() {
                   <SelectContent>
                     <SelectItem value="spring">봄 (Spring)</SelectItem>
                     <SelectItem value="summer">여름 (Summer)</SelectItem>
-                    <SelectItem value="fall">가을 (Fall)</SelectItem>
+                    <SelectItem value="autumn">가을 (Fall)</SelectItem>
                     <SelectItem value="winter">겨울 (Winter)</SelectItem>
                     <SelectItem value="all-season">사계절 (All Season)</SelectItem>
                   </SelectContent>
@@ -90,8 +118,8 @@ export default function ManufacturingStep1() {
               <div className="space-y-2">
                 <Label htmlFor="targetCustomer">타겟 고객층 *</Label>
                 <Select
-                  value={formData.targetCustomer}
-                  onValueChange={(value) => setFormData({ ...formData, targetCustomer: value })}
+                  value={formData.target_customer}
+                  onValueChange={(value) => setFormData({ ...formData, target_customer: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="타겟 고객층을 선택해주세요" />
@@ -119,10 +147,17 @@ export default function ManufacturingStep1() {
                 />
               </div>
 
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 text-sm">{errorMessage}</p>
+                </div>
+              )}
+
               <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={!isFormValid} className="px-8">
-                  다음 단계
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button type="submit" disabled={!isFormValid || isLoading} className="px-8">
+                  {isLoading ? '저장 중...' : '다음 단계'}
+                  {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
             </form>

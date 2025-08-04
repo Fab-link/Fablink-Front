@@ -7,27 +7,47 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Shirt, Menu, Plus, FileText, User, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useAuthContext } from "@/contexts/AuthContext"
+import { debugLog } from "@/lib/config"
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { user, isAuthenticated, isLoading, logout } = useAuthContext()
   const [userInfo, setUserInfo] = useState<any>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   useEffect(() => {
-    const userData = localStorage.getItem("userInfo")
-    if (userData) {
-      setUserInfo(JSON.parse(userData))
-    } else {
-      router.push("/login")
+    debugLog('대시보드 페이지 마운트:', { isAuthenticated, user, isLoading });
+    
+    if (!isLoading) {
+      if (isAuthenticated && user) {
+        debugLog('받은 사용자 데이터:', user);
+        
+        const newUserInfo = {
+          id: user.userId || user.user_id || user.id,
+          name: user.name,
+          userType: user.userType || user.user_type,
+          loginTime: new Date().toISOString()
+        };
+        debugLog('설정할 사용자 정보:', newUserInfo);
+        setUserInfo(newUserInfo);
+      } else {
+        debugLog('인증되지 않음, 로그인 페이지로 리디렉션');
+        router.replace("/login");
+        return;
+      }
     }
-  }, [router])
+  }, [isLoading, isAuthenticated, user, router])
 
-  const handleLogout = () => {
-    localStorage.removeItem("userInfo")
+  const handleLogout = async () => {
+    debugLog('로그아웃 시도');
+    await logout()
+    debugLog('로그아웃 완료, 메인 페이지로 리디렉션');
     router.push("/")
   }
 
-  if (!userInfo) {
+  // 인증되지 않은 경우 로딩 화면 표시 안함
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -36,6 +56,11 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  }
+  
+  // 인증되지 않았거나 사용자 정보가 없으면 null 반환 (리디렉션 중)
+  if (!isAuthenticated || !user || !userInfo) {
+    return null;
   }
 
   return (
@@ -58,7 +83,7 @@ export default function DashboardPage() {
                       <User className="h-5 w-5" />
                       <span>{userInfo.userType === "designer" ? "디자이너" : "공장"} 메뉴</span>
                     </SheetTitle>
-                    <SheetDescription>{userInfo.id}님, 안녕하세요!</SheetDescription>
+                    <SheetDescription>{userInfo.name || userInfo.id}님, 안녕하세요!</SheetDescription>
                   </SheetHeader>
 
                   <div className="mt-8 space-y-4">
@@ -116,7 +141,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                {userInfo.userType === "designer" ? "디자이너" : "공장"}: {userInfo.id}
+                {userInfo.userType === "designer" ? "디자이너" : "공장"}: {userInfo.name || userInfo.id}
               </span>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
@@ -129,7 +154,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">안녕하세요, {userInfo.id}님!</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">안녕하세요, {userInfo.name || userInfo.id}님!</h2>
           <p className="text-gray-600">
             {userInfo.userType === "designer"
               ? "새로운 의류 제작을 시작하거나 기존 주문을 확인해보세요."
@@ -220,6 +245,9 @@ export default function DashboardPage() {
               <div className="space-y-2 text-sm">
                 <p>
                   <span className="font-medium">사용자 ID:</span> {userInfo.id}
+                </p>
+                <p>
+                  <span className="font-medium">이름:</span> {userInfo.name}
                 </p>
                 <p>
                   <span className="font-medium">사용자 타입:</span>{" "}
