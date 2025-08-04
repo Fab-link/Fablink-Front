@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import Cookies from 'js-cookie';
 
 // 인증 컨텍스트 타입
 interface AuthContextType {

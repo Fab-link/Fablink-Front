@@ -32,11 +32,26 @@ export default function ManufacturingStep1() {
     setErrorMessage(null)
 
     try {
+      console.log('Submitting form data:', formData)
       const response = await manufacturingApi.createProduct(formData)
-      localStorage.setItem("manufacturingData", JSON.stringify({ productId: response.id }))
+      console.log('Create product response:', response)
+      
+      if (!response.id) {
+        throw new Error('제품 ID가 반환되지 않았습니다.')
+      }
+      
+      const manufacturingData = {
+        productId: response.id,
+        ...formData
+      }
+      
+      localStorage.setItem("manufacturingData", JSON.stringify(manufacturingData))
+      console.log('Saved to localStorage:', manufacturingData)
+      
       router.push("/manufacturing/design-upload")
     } catch (error) {
-      setErrorMessage("제품 정보 저장 중 오류가 발생했습니다.")
+      console.error('Submit error:', error)
+      setErrorMessage(`제품 정보 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
     } finally {
       setIsLoading(false)
     }
@@ -132,10 +147,17 @@ export default function ManufacturingStep1() {
                 />
               </div>
 
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 text-sm">{errorMessage}</p>
+                </div>
+              )}
+
               <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={!isFormValid} className="px-8">
-                  다음 단계
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button type="submit" disabled={!isFormValid || isLoading} className="px-8">
+                  {isLoading ? '저장 중...' : '다음 단계'}
+                  {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
             </form>

@@ -21,20 +21,20 @@ export default function DashboardPage() {
     
     if (!isLoading) {
       if (isAuthenticated && user) {
-        debugLog('받은 사용자 데이터:', user); // 실제 사용자 데이터 확인
+        debugLog('받은 사용자 데이터:', user);
         
-        // 백엔드 응답 필드명에 맞게 매핑 (camelCase)
         const newUserInfo = {
-          id: user.userId, // camelCase 필드 사용
+          id: user.userId || user.user_id || user.id,
           name: user.name,
-          userType: user.userType, // camelCase 필드 사용
+          userType: user.userType || user.user_type,
           loginTime: new Date().toISOString()
         };
         debugLog('설정할 사용자 정보:', newUserInfo);
         setUserInfo(newUserInfo);
       } else {
         debugLog('인증되지 않음, 로그인 페이지로 리디렉션');
-        router.push("/login");
+        router.replace("/login");
+        return;
       }
     }
   }, [isLoading, isAuthenticated, user, router])
@@ -46,7 +46,8 @@ export default function DashboardPage() {
     router.push("/")
   }
 
-  if (isLoading || !userInfo) {
+  // 인증되지 않은 경우 로딩 화면 표시 안함
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -55,6 +56,11 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  }
+  
+  // 인증되지 않았거나 사용자 정보가 없으면 null 반환 (리디렉션 중)
+  if (!isAuthenticated || !user || !userInfo) {
+    return null;
   }
 
   return (
