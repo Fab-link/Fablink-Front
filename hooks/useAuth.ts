@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, AuthState, Tokens, LoginRequest } from '@/types/auth';
 import { authApi } from '@/lib/api/auth';
 import { debugLog } from '@/lib/config';
-import Cookies from 'js-cookie';
 
 /**
  * 인증 관련 상태와 함수를 제공하는 커스텀 훅
@@ -19,16 +18,22 @@ export function useAuth() {
   });
 
   /**
-   * 로컬 스토리지에서 인증 정보 로드
+   * 세션 스토리지에서 인증 정보 로드
    */
   const loadAuthFromStorage = useCallback(async () => {
     debugLog('loadAuthFromStorage 호출됨');
     try {
-      const authToken = Cookies.get('authToken');
-      const refreshToken = Cookies.get('refreshToken');
-      const userJson = localStorage.getItem('userData');
+      // 서버 사이드 렌더링 환경에서는 sessionStorage에 접근할 수 없음
+      if (typeof window === 'undefined') {
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+      
+      const authToken = sessionStorage.getItem('authToken');
+      const refreshToken = sessionStorage.getItem('refreshToken');
+      const userJson = sessionStorage.getItem('userData');
 
-      debugLog('쿠키 및 로컬 스토리지 값:', { authToken: authToken ? '존재함' : '없음', refreshToken: refreshToken ? '존재함' : '없음', userJson: userJson ? '존재함' : '없음' });
+      debugLog('세션 스토리지 값:', { authToken: authToken ? '존재함' : '없음', refreshToken: refreshToken ? '존재함' : '없음', userJson: userJson ? '존재함' : '없음' });
 
       if (authToken && refreshToken && userJson) {
         const tokens: Tokens = { access: authToken, refresh: refreshToken };
@@ -108,9 +113,11 @@ export function useAuth() {
       const response = await authApi.login(loginData);
       
       if (response.success) {
-        Cookies.set('authToken', response.tokens.access, { expires: 1 }); // 1일 후 만료
-        Cookies.set('refreshToken', response.tokens.refresh, { expires: 7 }); // 7일 후 만료
-        localStorage.setItem('userData', JSON.stringify(response.user));
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('authToken', response.tokens.access);
+          sessionStorage.setItem('refreshToken', response.tokens.refresh);
+          sessionStorage.setItem('userData', JSON.stringify(response.user));
+        }
 
         setAuthState({
           user: response.user,
@@ -163,9 +170,11 @@ export function useAuth() {
       setAuthState(prev => ({ ...prev, isLoading: true }));
       
       await authApi.logout();
-      Cookies.remove('authToken');
-      Cookies.remove('refreshToken');
-      localStorage.removeItem('userData');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userData');
+      }
       
       setAuthState({
         user: null,
@@ -178,6 +187,11 @@ export function useAuth() {
       debugLog('로그아웃 에러:', error);
       
       // 에러가 발생해도 로컬에서는 로그아웃 처리
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userData');
+      }
       setAuthState({
         user: null,
         tokens: null,
@@ -200,13 +214,17 @@ export function useAuth() {
    */
   const refreshTokens = async () => {
     try {
-      const refreshToken = Cookies.get('refreshToken');
+      if (typeof window === 'undefined') {
+        throw new Error('Cannot access sessionStorage on server side');
+      }
+      
+      const refreshToken = sessionStorage.getItem('refreshToken');
       if (!refreshToken) {
         throw new Error('Refresh token not found');
       }
       const newTokens = await authApi.refreshToken(refreshToken);
-      Cookies.set('authToken', newTokens.access, { expires: 1 });
-      Cookies.set('refreshToken', newTokens.refresh, { expires: 7 });
+      sessionStorage.setItem('authToken', newTokens.access);
+      sessionStorage.setItem('refreshToken', newTokens.refresh);
       setAuthState(prev => ({
         ...prev,
         tokens: newTokens,

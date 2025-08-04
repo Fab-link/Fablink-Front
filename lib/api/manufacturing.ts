@@ -12,6 +12,21 @@ export interface ProductData {
   image_path?: File | null;
 }
 
+// Order 데이터 타입
+export interface OrderData {
+  id?: number;
+  product: number;
+  quantity: number;
+  unit_price?: number;
+  customer_name?: string;
+  customer_contact?: string;
+  customer_email?: string;
+  shipping_address?: string;
+  shipping_method?: string;
+  shipping_cost?: number;
+  notes?: string;
+}
+
 /**
  * 제조 관련 API 함수 모음
  */
@@ -47,4 +62,50 @@ export const manufacturingApi = {
       body: JSON.stringify(productData),
     });
   },
+
+  /**
+   * 주문 생성
+   * @param orderData 생성할 주문 데이터
+   * @returns 생성된 주문 정보
+   */
+  createOrder: async (orderData: OrderData) => {
+    return apiClient.post<OrderData>('/manufacturing/orders/', orderData);
+  },
+
+  /**
+   * 주문 목록 조회
+   * @returns 주문 목록
+   */
+  getOrders: async () => {
+    return apiClient.get<OrderData[]>('/manufacturing/orders/');
+  },
+
+  /**
+   * 주문 상세 조회
+   * @param orderId 주문 ID
+   * @returns 주문 상세 정보
+   */
+  getOrder: async (orderId: number) => {
+    return apiClient.get<OrderData>(`/manufacturing/orders/${orderId}/`);
+  },
+
+  /**
+   * 주문 업데이트
+   * @param orderId 업데이트할 주문 ID
+   * @param orderData 업데이트할 데이터
+   * @returns 업데이트된 주문 정보
+   */
+  updateOrder: async (orderId: number, orderData: Partial<OrderData>) => {
+    return apiClient.request<OrderData>(`/manufacturing/orders/${orderId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(orderData),
+    });
+  },
+};
+
+/**
+ * 주문 관련 API 함수 모음
+ */
+export const orderApi = {
+  ...manufacturingApi
 };

@@ -39,6 +39,9 @@ export default function ManufacturingStep2() {
       const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
       const productId = manufacturingData.productId
 
+      console.log('Manufacturing data:', manufacturingData)
+      console.log('Product ID:', productId)
+
       if (!productId) {
         setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
         setIsLoading(false)
@@ -51,11 +54,23 @@ export default function ManufacturingStep2() {
         formData.append("image_path", uploadedFiles[0])
       }
 
-      await manufacturingApi.updateProduct(productId, formData)
+      console.log('Submitting form data:', {
+        detail: pointDescription,
+        hasImage: uploadedFiles.length > 0,
+        fileName: uploadedFiles[0]?.name
+      })
+
+      const result = await manufacturingApi.updateProduct(productId, formData)
+      console.log('Update result:', result)
+
+      // 업데이트된 데이터를 localStorage에 저장
+      const updatedData = { ...manufacturingData, detail: pointDescription }
+      localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
 
       router.push("/manufacturing/ai-analysis")
     } catch (error) {
-      setErrorMessage("데이터 저장 중 오류가 발생했습니다.")
+      console.error('Submit error:', error)
+      setErrorMessage(`데이터 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
     } finally {
       setIsLoading(false)
     }
@@ -65,7 +80,7 @@ export default function ManufacturingStep2() {
     router.push("/manufacturing")
   }
 
-  const isFormValid = uploadedFiles.length > 0 && pointDescription.trim()
+  const isFormValid = pointDescription.trim() // 이미지는 선택사항으로 변경
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -159,15 +174,22 @@ export default function ManufacturingStep2() {
             </CardContent>
           </Card>
 
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 text-sm">{errorMessage}</p>
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={handleBack}>
+            <Button variant="outline" onClick={handleBack} disabled={isLoading}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               이전 단계
             </Button>
-            <Button onClick={handleSubmit} disabled={!isFormValid}>
-              다음 단계
-              <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={handleSubmit} disabled={!isFormValid || isLoading}>
+              {isLoading ? '저장 중...' : '다음 단계'}
+              {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
           </div>
         </div>

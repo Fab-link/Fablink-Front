@@ -46,7 +46,33 @@ export default function ManufacturingStep7() {
   }
 
   const generateWorkOrderContent = (data: any) => {
-    const deliveryDate = data.step5?.deliveryDate ? new Date(data.step5.deliveryDate) : null
+    const deliveryDate = data.due_date ? new Date(data.due_date) : (data.step5?.deliveryDate ? new Date(data.step5.deliveryDate) : null)
+    
+    // 원단 정보 파싱
+    let fabricInfo = ""
+    if (data.fabric) {
+      try {
+        const fabricData = typeof data.fabric === 'string' ? JSON.parse(data.fabric) : data.fabric
+        fabricInfo = `${fabricData.name || fabricData.code || data.step4?.fabricCode || ""}`
+      } catch {
+        fabricInfo = data.step4?.fabricCode || ""
+      }
+    } else {
+      fabricInfo = data.step4?.fabricCode || ""
+    }
+    
+    // 부자재 정보 파싱
+    let materialInfo = ""
+    if (data.material) {
+      try {
+        const materialData = typeof data.material === 'string' ? JSON.parse(data.material) : data.material
+        materialInfo = `${materialData.name || materialData.code || data.step4?.accessoryCode || ""}`
+      } catch {
+        materialInfo = data.step4?.accessoryCode || ""
+      }
+    } else {
+      materialInfo = data.step4?.accessoryCode || ""
+    }
 
     return `
 ===========================================
@@ -59,35 +85,35 @@ export default function ManufacturingStep7() {
 ===========================================
 1. 제품 기본 정보
 ===========================================
-제품명: ${data.step1?.productName || ""}
-시즌: ${data.step1?.season || ""}
-타겟 고객층: ${data.step1?.targetCustomer || ""}
-컨셉: ${data.step1?.concept || ""}
+제품명: ${data.name || data.step1?.productName || ""}
+시즌: ${data.season || data.step1?.season || ""}
+타겟 고객층: ${data.target_customer || data.step1?.targetCustomer || ""}
+컨셉: ${data.concept || data.step1?.concept || ""}
 
 ===========================================
 2. 디자인 정보
 ===========================================
 업로드된 파일 수: ${data.step2?.files || 0}개
 포인트 부위 설명:
-${data.step2?.pointDescription || ""}
+${data.detail || data.step2?.pointDescription || ""}
 
 ===========================================
 3. 재료 정보
 ===========================================
-선택된 원단 코드: ${data.step4?.fabricCode || ""}
-선택된 부자재 코드: ${data.step4?.accessoryCode || ""}
+선택된 원단: ${fabricInfo}
+선택된 부자재: ${materialInfo}
 
 ===========================================
 4. 생산 정보
 ===========================================
-샘플 사이즈: ${data.step5?.sampleSize?.toUpperCase() || ""}
-총 생산 수량: ${data.step5?.totalQuantity || ""}개
+샘플 사이즈: ${(data.size || data.step5?.sampleSize)?.toUpperCase() || ""}
+총 생산 수량: ${data.quantity || data.step5?.totalQuantity || ""}개
 납기일: ${deliveryDate ? format(deliveryDate, "PPP", { locale: ko }) : ""}
 
 ===========================================
 5. 특별 참고사항
 ===========================================
-${data.step6?.finalNotes || "특별한 요청사항 없음"}
+${data.memo || data.step6?.finalNotes || "특별한 요청사항 없음"}
 
 ===========================================
 6. 작업 체크리스트
@@ -170,20 +196,20 @@ ${data.step6?.finalNotes || "특별한 요청사항 없음"}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">제품명:</span>
-                    <p className="font-medium">{orderData.step1?.productName}</p>
+                    <p className="font-medium">{orderData.name || orderData.step1?.productName}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">시즌:</span>
-                    <p className="font-medium">{orderData.step1?.season}</p>
+                    <p className="font-medium">{orderData.season || orderData.step1?.season}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">타겟 고객층:</span>
-                    <p className="font-medium">{orderData.step1?.targetCustomer}</p>
+                    <p className="font-medium">{orderData.target_customer || orderData.step1?.targetCustomer}</p>
                   </div>
                 </div>
                 <div className="mt-2">
                   <span className="text-gray-600">컨셉:</span>
-                  <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{orderData.step1?.concept}</p>
+                  <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{orderData.concept || orderData.step1?.concept}</p>
                 </div>
               </div>
 
@@ -208,7 +234,7 @@ ${data.step6?.finalNotes || "특별한 요청사항 없음"}
                   </div>
                   <div>
                     <span className="text-gray-600">포인트 부위 설명:</span>
-                    <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{orderData.step2?.pointDescription}</p>
+                    <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{orderData.detail || orderData.step2?.pointDescription}</p>
                   </div>
                 </div>
               </div>
@@ -252,15 +278,15 @@ ${data.step6?.finalNotes || "특별한 요청사항 없음"}
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">샘플 사이즈:</span>
-                    <p className="font-medium">{orderData.step5?.sampleSize?.toUpperCase()}</p>
+                    <p className="font-medium">{(orderData.size || orderData.step5?.sampleSize)?.toUpperCase()}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">총 수량:</span>
-                    <p className="font-medium">{orderData.step5?.totalQuantity}개</p>
+                    <p className="font-medium">{orderData.quantity || orderData.step5?.totalQuantity}개</p>
                   </div>
                   <div>
                     <span className="text-gray-600">납기일:</span>
-                    <p className="font-medium">{deliveryDate ? format(deliveryDate, "PPP", { locale: ko }) : ""}</p>
+                    <p className="font-medium">{orderData.due_date ? format(new Date(orderData.due_date), "PPP", { locale: ko }) : (deliveryDate ? format(deliveryDate, "PPP", { locale: ko }) : "")}</p>
                   </div>
                 </div>
               </div>
@@ -279,7 +305,7 @@ ${data.step6?.finalNotes || "특별한 요청사항 없음"}
                 </div>
                 <div className="text-sm">
                   <p className="p-2 bg-gray-50 rounded">
-                    {orderData.step6?.finalNotes || "특별한 요청사항이 없습니다."}
+                    {orderData.memo || orderData.step6?.finalNotes || "특별한 요청사항이 없습니다."}
                   </p>
                 </div>
               </div>
