@@ -15,15 +15,17 @@ import { ArrowLeft, CreditCard, Shield, CheckCircle, AlertCircle, Calculator } f
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
+import { useAuthContext } from "@/contexts/AuthContext"
+import { manufacturingApi, OrderData } from "@/lib/api/manufacturing"
 
 export default function ManufacturingStep8() {
   const router = useRouter()
+  const { user } = useAuthContext()
   const [orderData, setOrderData] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     customerName: "",
     customerPhone: "",
-    customerEmail: "",
     companyName: "",
     businessNumber: "",
     address: "",
@@ -31,6 +33,7 @@ export default function ManufacturingStep8() {
     agreeTerms: false,
     agreePrivacy: false,
     agreeMarketing: false,
+    useMemberInfo: false,
   })
 
   // 버튼 텍스트를 "견적 요청"으로 변경하고 클릭 시 팝업 표시
@@ -73,22 +76,43 @@ export default function ManufacturingStep8() {
 
     setIsSubmitting(true)
 
-    // Store final order data
-    const finalOrderData = {
-      ...orderData,
-      step8: {
-        customerInfo: formData,
-        pricing: calculatePricing(),
-        orderedAt: new Date().toISOString(),
-      },
+    try {
+      // 주문 데이터 준비
+      const pricing = calculatePricing()
+      const orderPayload: OrderData = {
+        product: orderData.productId || 1, // Product ID가 있다고 가정
+        quantity: pricing.quantity,
+        unit_price: pricing.basePrice,
+        customer_name: formData.customerName,
+        customer_contact: formData.customerPhone,
+        shipping_address: formData.address,
+        shipping_method: formData.paymentMethod,
+        shipping_cost: pricing.shippingFee,
+        notes: `결제방법: ${formData.paymentMethod}, 회사명: ${formData.companyName || '없음'}, 사업자번호: ${formData.businessNumber || '없음'}`
+      }
+
+      // 백엔드 API 호출
+      const response = await manufacturingApi.createOrder(orderPayload)
+      
+      // 로컬 스토리지에도 저장 (기존 데이터 유지)
+      const finalOrderData = {
+        ...orderData,
+        step8: {
+          customerInfo: formData,
+          pricing: calculatePricing(),
+          orderedAt: new Date().toISOString(),
+          orderId: response.id
+        },
+      }
+      localStorage.setItem("manufacturingData", JSON.stringify(finalOrderData))
+
+      setShowSuccessPopup(true)
+    } catch (error) {
+      console.error('주문 생성 오류:', error)
+      alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    localStorage.setItem("manufacturingData", JSON.stringify(finalOrderData))
-
-    // Simulate order processing
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    setShowSuccessPopup(true)
   }
 
   const handleBack = () => {
@@ -111,7 +135,6 @@ export default function ManufacturingStep8() {
   const isFormValid =
     formData.customerName &&
     formData.customerPhone &&
-    formData.customerEmail &&
     formData.address &&
     formData.paymentMethod &&
     formData.agreeTerms &&
@@ -142,8 +165,33 @@ export default function ManufacturingStep8() {
               {/* Customer Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle>고객 정보</CardTitle>
-                  <CardDescription>주문자 정보를 정확히 입력해주세요</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>고객 정보</CardTitle>
+                      <CardDescription>주문자 정보를 정확히 입력해주세요</CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="useMemberInfo"
+                        checked={formData.useMemberInfo}
+                        onCheckedChange={(checked) => {
+                          const isChecked = !!checked
+                          setFormData({ 
+                            ...formData, 
+                            useMemberInfo: isChecked,
+                            ...(isChecked && user ? {
+                              customerName: user.name || "",
+                              customerPhone: user.contact || "",
+                              address: user.address || ""
+                            } : {})
+                          })
+                        }}
+                      />
+                      <Label htmlFor="useMemberInfo" className="text-sm font-medium">
+                        회원정보와 동일함
+                      </Label>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -169,17 +217,7 @@ export default function ManufacturingStep8() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="customerEmail">이메일 *</Label>
-                    <Input
-                      id="customerEmail"
-                      type="email"
-                      placeholder="example@email.com"
-                      value={formData.customerEmail}
-                      onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                      required
-                    />
-                  </div>
+
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
