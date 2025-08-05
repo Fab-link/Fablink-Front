@@ -20,7 +20,6 @@ export interface OrderData {
   unit_price?: number;
   customer_name?: string;
   customer_contact?: string;
-  customer_email?: string;
   shipping_address?: string;
   shipping_method?: string;
   shipping_cost?: number;
