@@ -29,17 +29,17 @@ export default function ManufacturingStep2() {
   
   // 의류 종류 옵션
   const garmentTypes = [
-    { id: 'tshirt', name: '티셔츠', silhouette: '/images/garments/tshirt.jpg' },
-    { id: 'polo', name: '카라티', silhouette: '/images/garments/polo.jpg' },
-    { id: 'sweatshirt', name: '맨투맨', silhouette: '/images/garments/sweatshirt.jpg' },
-    { id: 'shirt', name: '셔츠', silhouette: '/images/garments/shirt.jpg' }
+    { id: 'tshirt', name: '티셔츠', silhouette: '/images/garments/tshirt.png' },
+    { id: 'polo', name: '카라티', silhouette: '/images/garments/polo.png' },
+    { id: 'sweatshirt', name: '맨투맨', silhouette: '/images/garments/sweatshirt.png' },
+    { id: 'shirt', name: '셔츠', silhouette: '/images/garments/shirt.png' }
   ]
   
-  // 디자인 요소 옵션
+  // 디자인 요소 옵션 (1024x1024 이미지 기준)
   const designElements = [
-    { id: 'logo', name: '로고', position: { top: '20%', left: '15%' } },
-    { id: 'print', name: '프린팅', position: { top: '40%', left: '50%', transform: 'translateX(-50%)' } },
-    { id: 'patch', name: '패치', position: { top: '60%', left: '20%' } }
+    { id: 'logo', name: '로고', position: { top: '25%', left: '27%' } },
+    { id: 'print', name: '프린팅', position: { top: '45%', left: '50%', transform: 'translateX(-50%)' } },
+    { id: 'patch', name: '패치', position: { top: '70%', left: '25%' } }
   ]
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,14 +162,14 @@ export default function ManufacturingStep2() {
                 >
                   <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-sm font-medium text-gray-900 mb-1">파일 업로드</p>
-                  <p className="text-xs text-gray-500">JPG, jpg, PDF 지원</p>
+                  <p className="text-xs text-gray-500">png, png, PDF 지원</p>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".jpg,.jpeg,.jpg,.pdf"
+                  accept=".png,.jpeg,.png,.pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -282,9 +282,9 @@ export default function ManufacturingStep2() {
                   <div className="relative flex items-center justify-center">
                     {/* 의류 실루엣 (이미지 기반) */}
                     <div className="relative">
-                      <div className="w-64 h-80 relative">
+                      <div className="w-80 h-80 relative">
                         <img 
-                          src={`/images/garments/${selectedGarmentType}.jpg`}
+                          src={`/images/garments/${selectedGarmentType}.png`}
                           alt={`${garmentTypes.find(g => g.id === selectedGarmentType)?.name} 실루엣`}
                           className="w-full h-full object-contain"
                         />
@@ -301,8 +301,8 @@ export default function ManufacturingStep2() {
                             className="absolute"
                             style={{
                               ...element.position,
-                              width: elementId === 'print' ? '50%' : '25%',
-                              height: elementId === 'print' ? '30%' : '15%'
+                              width: elementId === 'print' ? '40%' : elementId === 'logo' ? '20%' : '18%',
+                              height: elementId === 'print' ? '25%' : elementId === 'logo' ? '12%' : '10%'
                             }}
                           >
                             <img
