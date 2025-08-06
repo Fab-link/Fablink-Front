@@ -74,6 +74,58 @@ export default function ManufacturingStep2() {
       setSelectedElements(prev => prev.filter(id => id !== elementId))
     }
   }
+  
+  // Canvas로 합성 이미지 생성
+  const generateCompositeImage = async (): Promise<Blob | null> => {
+    if (!selectedGarmentType || !previewImage) return null
+    
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    
+    canvas.width = 800
+    canvas.height = 800
+    
+    return new Promise((resolve) => {
+      const garmentImg = new Image()
+      garmentImg.crossOrigin = 'anonymous'
+      garmentImg.onload = () => {
+        // 의류 실루엣 그리기
+        ctx.drawImage(garmentImg, 0, 0, canvas.width, canvas.height)
+        
+        // 사용자 디자인 요소들 그리기
+        const designImg = new Image()
+        designImg.crossOrigin = 'anonymous'
+        designImg.onload = () => {
+          selectedElements.forEach((elementId) => {
+            const element = designElements.find(e => e.id === elementId)
+            if (!element) return
+            
+            const x = parseFloat(element.position.left.replace('%', '')) / 100 * canvas.width
+            const y = parseFloat(element.position.top.replace('%', '')) / 100 * canvas.height
+            
+            let width, height
+            if (elementId === 'print') {
+              width = canvas.width * 0.4
+              height = canvas.height * 0.25
+            } else if (elementId === 'logo') {
+              width = canvas.width * 0.2
+              height = canvas.height * 0.12
+            } else {
+              width = canvas.width * 0.18
+              height = canvas.height * 0.1
+            }
+            
+            ctx.drawImage(designImg, x - width/2, y - height/2, width, height)
+          })
+          
+          canvas.toBlob(resolve, 'image/png')
+        }
+        designImg.src = previewImage
+      }
+      garmentImg.src = `/images/garments/${selectedGarmentType}.png`
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,11 +157,21 @@ export default function ManufacturingStep2() {
         fileName: uploadedFiles[0]?.name
       })
 
+      // 합성 이미지 생성 및 저장
+      const compositeBlob = await generateCompositeImage()
+      if (compositeBlob) {
+        formData.append("composite_image", compositeBlob, "design_preview.png")
+      }
+      
       const result = await manufacturingApi.updateProduct(productId, formData)
       console.log('Update result:', result)
 
       // 업데이트된 데이터를 localStorage에 저장
-      const updatedData = { ...manufacturingData, detail: pointDescription }
+      const updatedData = { 
+        ...manufacturingData, 
+        detail: pointDescription,
+        compositeImageUrl: result.composite_image_url // 서버에서 반환된 URL
+      }
       localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
 
       router.push("/manufacturing/ai-analysis")

@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Download, Home, MessageCircle, Calendar } from "lucide-react"
+import { CheckCircle, Download, Home, MessageCircle, Calendar, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { downloadWorksheetExcel } from "@/lib/pdfGenerator"
 
 export default function ManufacturingSuccess() {
   const router = useRouter()
@@ -19,6 +20,32 @@ export default function ManufacturingSuccess() {
       a.download = "manufacturing-order-summary.json"
       a.click()
       URL.revokeObjectURL(url)
+    }
+  }
+
+  const handleDownloadWorksheet = () => {
+    const data = localStorage.getItem("manufacturingData")
+    if (data) {
+      const manufacturingData = JSON.parse(data)
+      
+      // 작업지시서 데이터 구성
+      const worksheetData = {
+        productName: manufacturingData.name || '제품명',
+        season: manufacturingData.season || '',
+        target: manufacturingData.target_customer || '',
+        concept: manufacturingData.concept || '',
+        detail: manufacturingData.detail || '',
+        quantity: manufacturingData.quantity || 0,
+        size: (manufacturingData.size || 'M').toUpperCase(),
+        garmentType: 'tshirt',
+        fabric: manufacturingData.step4?.fabricCode || '',
+        material: manufacturingData.step4?.accessoryCode || '',
+        dueDate: manufacturingData.due_date || new Date().toLocaleDateString('ko-KR'),
+        memo: manufacturingData.memo || '',
+        compositeImageUrl: manufacturingData.compositeImageUrl || ''
+      }
+      
+      downloadWorksheetExcel(worksheetData)
     }
   }
 
@@ -159,11 +186,15 @@ export default function ManufacturingSuccess() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Button onClick={handleDownloadWorksheet} className="flex-1">
+              <FileText className="mr-2 h-4 w-4" />
+              작업지시서 다운로드
+            </Button>
             <Button onClick={handleDownloadSummary} variant="outline" className="flex-1 bg-transparent">
               <Download className="mr-2 h-4 w-4" />
               주문 요약서 다운로드
             </Button>
-            <Button onClick={() => router.push("/")} className="flex-1">
+            <Button onClick={() => router.push("/")} variant="outline" className="flex-1">
               <Home className="mr-2 h-4 w-4" />
               홈으로 돌아가기
             </Button>

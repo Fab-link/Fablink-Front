@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "prelocal": "node scripts/setup-env.js local",
-    "local": "next dev",
+    "local": "npx next dev",
     "predev": "node scripts/setup-env.js dev",
-    "dev": "next dev",
+    "dev": "npx next dev",
     "preprod": "node scripts/setup-env.js prod",
-    "prod": "next build && next start",
-    "build": "next build",
-    "lint": "next lint",
-    "start": "next start"
+    "prod": "npx next build && npx next start",
+    "build": "npx next build",
+    "lint": "npx next lint",
+    "start": "npx next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -48,6 +48,7 @@
     "cmdk": "1.0.4",
     "date-fns": "latest",
     "embla-carousel-react": "8.5.1",
+    "exceljs": "^4.4.0",
     "input-otp": "1.4.1",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.454.0",

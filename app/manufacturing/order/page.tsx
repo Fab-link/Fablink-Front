@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -36,9 +35,6 @@ export default function ManufacturingStep8() {
     useMemberInfo: false,
   })
 
-  // 버튼 텍스트를 "견적 요청"으로 변경하고 클릭 시 팝업 표시
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
-
   useEffect(() => {
     const data = localStorage.getItem("manufacturingData")
     if (data) {
@@ -46,12 +42,14 @@ export default function ManufacturingStep8() {
     }
   }, [])
 
-  const calculatePricing = () => {
-    const quantity = Number.parseInt(orderData?.step5?.totalQuantity || "0")
-    const basePrice = 15000 // 기본 단가
+  const pricing = useMemo(() => {
+    if (!orderData?.step5?.totalQuantity) return null
+    
+    const quantity = Number.parseInt(orderData.step5.totalQuantity)
+    const basePrice = 15000
     const totalPrice = quantity * basePrice
-    const sampleFee = 0 // 무료 샘플
-    const shippingFee = quantity >= 500 ? 0 : 50000 // 500개 이상 무료배송
+    const sampleFee = 0
+    const shippingFee = quantity >= 500 ? 0 : 50000
     const tax = Math.floor(totalPrice * 0.1)
     const finalPrice = totalPrice + sampleFee + shippingFee + tax
 
@@ -64,9 +62,9 @@ export default function ManufacturingStep8() {
       tax,
       finalPrice,
     }
-  }
+  }, [orderData?.step5?.totalQuantity])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!formData.agreeTerms || !formData.agreePrivacy) {
@@ -74,13 +72,29 @@ export default function ManufacturingStep8() {
       return
     }
 
+    if (!pricing) {
+      alert("가격 정보를 불러올 수 없습니다.")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // 주문 데이터 준비
-      const pricing = calculatePricing()
+      const finalOrderData = {
+        ...orderData,
+        step8: {
+          customerInfo: formData,
+          pricing,
+          orderedAt: new Date().toISOString(),
+          orderId: `temp-${Date.now()}`
+        },
+      }
+      localStorage.setItem("manufacturingData", JSON.stringify(finalOrderData))
+
+      router.push("/manufacturing/success")
+
       const orderPayload: OrderData = {
-        product: orderData.productId || 1, // Product ID가 있다고 가정
+        product: orderData.productId || 1,
         quantity: pricing.quantity,
         unit_price: pricing.basePrice,
         customer_name: formData.customerName,
@@ -91,35 +105,49 @@ export default function ManufacturingStep8() {
         notes: `결제방법: ${formData.paymentMethod}, 회사명: ${formData.companyName || '없음'}, 사업자번호: ${formData.businessNumber || '없음'}`
       }
 
-      // 백엔드 API 호출
-      const response = await manufacturingApi.createOrder(orderPayload)
-      
-      // 로컬 스토리지에도 저장 (기존 데이터 유지)
-      const finalOrderData = {
-        ...orderData,
-        step8: {
-          customerInfo: formData,
-          pricing: calculatePricing(),
-          orderedAt: new Date().toISOString(),
-          orderId: response.id
-        },
-      }
-      localStorage.setItem("manufacturingData", JSON.stringify(finalOrderData))
+      manufacturingApi.createOrder(orderPayload)
+        .then(response => {
+          const updatedData = {
+            ...finalOrderData,
+            step8: {
+              ...finalOrderData.step8,
+              orderId: response.id
+            }
+          }
+          localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
+        })
+        .catch(error => {
+          console.error('백그라운드 API 오류:', error)
+        })
 
-      setShowSuccessPopup(true)
     } catch (error) {
-      console.error('주문 생성 오류:', error)
+      console.error('주문 처리 오류:', error)
       alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [formData, pricing, orderData, router])
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     router.push("/manufacturing/work-order")
-  }
+  }, [router])
 
-  if (!orderData) {
+  const deliveryDate = useMemo(() => 
+    orderData?.step5?.deliveryDate ? new Date(orderData.step5.deliveryDate) : null,
+    [orderData?.step5?.deliveryDate]
+  )
+
+  const isFormValid = useMemo(() =>
+    formData.customerName &&
+    formData.customerPhone &&
+    formData.address &&
+    formData.paymentMethod &&
+    formData.agreeTerms &&
+    formData.agreePrivacy,
+    [formData]
+  )
+
+  if (!orderData || !pricing) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -130,20 +158,9 @@ export default function ManufacturingStep8() {
     )
   }
 
-  const pricing = calculatePricing()
-  const deliveryDate = orderData.step5?.deliveryDate ? new Date(orderData.step5.deliveryDate) : null
-  const isFormValid =
-    formData.customerName &&
-    formData.customerPhone &&
-    formData.address &&
-    formData.paymentMethod &&
-    formData.agreeTerms &&
-    formData.agreePrivacy
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-600">단계 8/8</span>
@@ -152,17 +169,14 @@ export default function ManufacturingStep8() {
           <Progress value={100} className="h-2" />
         </div>
 
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">주문 완료</h1>
           <p className="text-gray-600">고객 정보와 결제 방법을 입력하고 주문을 완료해주세요</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Order Form */}
           <div className="lg:col-span-2 space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Customer Information */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -176,15 +190,15 @@ export default function ManufacturingStep8() {
                         checked={formData.useMemberInfo}
                         onCheckedChange={(checked) => {
                           const isChecked = !!checked
-                          setFormData({ 
-                            ...formData, 
+                          setFormData(prev => ({ 
+                            ...prev, 
                             useMemberInfo: isChecked,
                             ...(isChecked && user ? {
                               customerName: user.name || "",
                               customerPhone: user.contact || "",
                               address: user.address || ""
                             } : {})
-                          })
+                          }))
                         }}
                       />
                       <Label htmlFor="useMemberInfo" className="text-sm font-medium">
@@ -201,7 +215,7 @@ export default function ManufacturingStep8() {
                         id="customerName"
                         placeholder="홍길동"
                         value={formData.customerName}
-                        onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
                         required
                       />
                     </div>
@@ -211,13 +225,11 @@ export default function ManufacturingStep8() {
                         id="customerPhone"
                         placeholder="010-1234-5678"
                         value={formData.customerPhone}
-                        onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
                         required
                       />
                     </div>
                   </div>
-
-
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -226,7 +238,7 @@ export default function ManufacturingStep8() {
                         id="companyName"
                         placeholder="(주)패션컴퍼니"
                         value={formData.companyName}
-                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -235,7 +247,7 @@ export default function ManufacturingStep8() {
                         id="businessNumber"
                         placeholder="123-45-67890"
                         value={formData.businessNumber}
-                        onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, businessNumber: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -246,14 +258,13 @@ export default function ManufacturingStep8() {
                       id="address"
                       placeholder="서울시 강남구 테헤란로 123, 456호"
                       value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       required
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Payment Method */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -265,7 +276,7 @@ export default function ManufacturingStep8() {
                 <CardContent>
                   <Select
                     value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="결제 방법을 선택해주세요" />
@@ -291,7 +302,6 @@ export default function ManufacturingStep8() {
                 </CardContent>
               </Card>
 
-              {/* Terms Agreement */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -304,7 +314,7 @@ export default function ManufacturingStep8() {
                     <Checkbox
                       id="agreeTerms"
                       checked={formData.agreeTerms}
-                      onCheckedChange={(checked) => setFormData({ ...formData, agreeTerms: !!checked })}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, agreeTerms: !!checked }))}
                     />
                     <Label htmlFor="agreeTerms" className="text-sm">
                       <span className="text-red-500">*</span> 서비스 이용약관에 동의합니다
@@ -315,7 +325,7 @@ export default function ManufacturingStep8() {
                     <Checkbox
                       id="agreePrivacy"
                       checked={formData.agreePrivacy}
-                      onCheckedChange={(checked) => setFormData({ ...formData, agreePrivacy: !!checked })}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, agreePrivacy: !!checked }))}
                     />
                     <Label htmlFor="agreePrivacy" className="text-sm">
                       <span className="text-red-500">*</span> 개인정보 처리방침에 동의합니다
@@ -326,7 +336,7 @@ export default function ManufacturingStep8() {
                     <Checkbox
                       id="agreeMarketing"
                       checked={formData.agreeMarketing}
-                      onCheckedChange={(checked) => setFormData({ ...formData, agreeMarketing: !!checked })}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, agreeMarketing: !!checked }))}
                     />
                     <Label htmlFor="agreeMarketing" className="text-sm">
                       마케팅 정보 수신에 동의합니다 (선택)
@@ -334,12 +344,26 @@ export default function ManufacturingStep8() {
                   </div>
                 </CardContent>
               </Card>
+              
+              <div className="flex justify-end pt-4">
+                <Button type="submit" disabled={!isFormValid || isSubmitting} size="lg" className="px-8">
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      요청 처리 중...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {pricing.finalPrice.toLocaleString()}원 견적 요청
+                    </>
+                  )}
+                </Button>
+              </div>
             </form>
           </div>
 
-          {/* Order Summary */}
           <div className="space-y-6">
-            {/* Order Details */}
             <Card>
               <CardHeader>
                 <CardTitle>주문 요약</CardTitle>
@@ -368,7 +392,6 @@ export default function ManufacturingStep8() {
               </CardContent>
             </Card>
 
-            {/* Pricing */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -422,7 +445,6 @@ export default function ManufacturingStep8() {
               </CardContent>
             </Card>
 
-            {/* Important Notice */}
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-2">
@@ -441,41 +463,13 @@ export default function ManufacturingStep8() {
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between pt-8">
+        <div className="flex justify-start pt-8">
           <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             이전 단계
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting} size="lg" className="px-8">
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                요청 처리 중...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                {pricing.finalPrice.toLocaleString()}원 견적 요청
-              </>
-            )}
-          </Button>
         </div>
       </div>
-    </div>
-  )
-  showSuccessPopup && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card className="max-w-md mx-4">
-        <CardContent className="pt-6 text-center">
-          <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold mb-2">견적 요청이 완료되었습니다!</h3>
-          <p className="text-gray-600 mb-6">담당자가 검토 후 연락드리겠습니다.</p>
-          <Button onClick={() => router.push("/dashboard")} className="w-full">
-            메인 페이지로 이동
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }
