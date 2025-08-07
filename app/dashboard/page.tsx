@@ -96,7 +96,7 @@ export default function DashboardPage() {
                           </Button>
                         </Link>
 
-                        <Link href="/orders" onClick={() => setIsSheetOpen(false)}>
+                        <Link href="/designer/orders" onClick={() => setIsSheetOpen(false)}>
                           <Button variant="outline" className="w-full justify-start bg-transparent">
                             <FileText className="mr-2 h-4 w-4" />
                             주문 내역 조회
@@ -202,7 +202,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <Link href="/orders">
+                <Link href="/designer/orders">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <FileText className="h-5 w-5 text-green-600" />
