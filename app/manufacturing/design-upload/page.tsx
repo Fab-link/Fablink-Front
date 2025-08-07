@@ -101,22 +101,26 @@ export default function ManufacturingStep2() {
             const element = designElements.find(e => e.id === elementId)
             if (!element) return
             
-            const x = parseFloat(element.position.left.replace('%', '')) / 100 * canvas.width
+            let x = parseFloat(element.position.left.replace('%', '')) / 100 * canvas.width
             const y = parseFloat(element.position.top.replace('%', '')) / 100 * canvas.height
             
             let width, height
             if (elementId === 'print') {
               width = canvas.width * 0.4
               height = canvas.height * 0.25
+              // print는 중앙 정렬이므로 x 위치 조정
+              x = x - width / 2
             } else if (elementId === 'logo') {
               width = canvas.width * 0.2
               height = canvas.height * 0.12
+              // logo는 왼쪽 정렬이므로 x 위치 그대로
             } else {
               width = canvas.width * 0.18
               height = canvas.height * 0.1
+              // patch는 왼쪽 정렬이므로 x 위치 그대로
             }
             
-            ctx.drawImage(designImg, x - width/2, y - height/2, width, height)
+            ctx.drawImage(designImg, x, y - height/2, width, height)
           })
           
           canvas.toBlob(resolve, 'image/png')
@@ -169,8 +173,8 @@ export default function ManufacturingStep2() {
       // 업데이트된 데이터를 localStorage에 저장
       const updatedData = { 
         ...manufacturingData, 
-        detail: pointDescription,
-        compositeImageUrl: result.composite_image_url // 서버에서 반환된 URL
+        ...result, // API 응답의 모든 데이터 포함
+        detail: pointDescription
       }
       localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
 
@@ -192,6 +196,17 @@ export default function ManufacturingStep2() {
   return (
     <div className="min-h-screen bg-gray-50 py-4">
       <div className="max-w-6xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         {/* Progress Bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">

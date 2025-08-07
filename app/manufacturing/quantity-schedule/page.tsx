@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, ArrowRight, CalendarIcon, Package, Clock, Ruler } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarIcon, Package, Clock, Ruler, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
@@ -88,6 +88,17 @@ export default function ManufacturingStep5() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">

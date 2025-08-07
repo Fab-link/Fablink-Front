@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, CreditCard, Shield, CheckCircle, AlertCircle, Calculator } from "lucide-react"
+import { ArrowLeft, CreditCard, Shield, CheckCircle, AlertCircle, Calculator, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
@@ -161,6 +161,17 @@ export default function ManufacturingStep8() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-600">단계 8/8</span>

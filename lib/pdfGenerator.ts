@@ -15,6 +15,7 @@ interface WorksheetData {
   dueDate: string
   memo?: string
   compositeImageUrl?: string
+  contact?: string
 }
 
 export const generateWorksheetPDF = async (data: WorksheetData): Promise<Blob> => {
@@ -22,6 +23,16 @@ export const generateWorksheetPDF = async (data: WorksheetData): Promise<Blob> =
     // 1. 템플릿 파일 로드
     const workbook = new ExcelJS.Workbook()
     const response = await fetch('/templates/work_sheet_templates.xlsx')
+    
+    if (!response.ok) {
+      throw new Error(`템플릿 파일 로드 실패: ${response.status} ${response.statusText}`)
+    }
+    
+    const contentType = response.headers.get('content-type')
+    if (contentType && !contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') && !contentType.includes('application/octet-stream')) {
+      console.warn('예상치 못한 content-type:', contentType)
+    }
+    
     const arrayBuffer = await response.arrayBuffer()
     await workbook.xlsx.load(arrayBuffer)
     
@@ -32,11 +43,15 @@ export const generateWorksheetPDF = async (data: WorksheetData): Promise<Blob> =
     }
     
     // 2. 기본 정보 입력
-    console.log('작업지시서 데이터:', data)
+    console.log('📋 작업지시서 데이터:', {
+      ...data,
+      compositeImageUrl: data.compositeImageUrl ? '✅ 있음' : '❌ 없음'
+    })
     
     worksheet.getCell('G3').value = data.productName || ''  // 제품명
     worksheet.getCell('G4').value = data.season || ''       // 시즌
     worksheet.getCell('G5').value = data.target || ''       // 타겟
+    worksheet.getCell('L3').value = data.contact || ''      // 연락처
     worksheet.getCell('L4').value = data.dueDate || ''      // 납기일
     worksheet.getCell('L5').value = data.quantity || ''     // 수량
     
@@ -75,25 +90,70 @@ export const generateWorksheetPDF = async (data: WorksheetData): Promise<Blob> =
     }
     
     // 4. 합성 이미지 삽입
-    if (data.compositeImageUrl) {
+    console.log('이미지 삽입 시작 - URL:', data.compositeImageUrl)
+    if (data.compositeImageUrl && data.compositeImageUrl.trim() !== '') {
       try {
+        console.log('이미지 fetch 시작:', data.compositeImageUrl)
         const imageResponse = await fetch(data.compositeImageUrl)
-        const imageBuffer = await imageResponse.arrayBuffer()
-        const imageId = workbook.addImage({
-          buffer: imageBuffer,
-          extension: 'png',
+        console.log('이미지 응답:', {
+          status: imageResponse.status,
+          statusText: imageResponse.statusText,
+          headers: Object.fromEntries(imageResponse.headers.entries())
         })
         
-        worksheet.addImage(imageId, {
-          tl: { col: 4, row: 8 }, // E9 셀 (col: 4=E, row: 8=9번째 행)
-          ext: { width: 200, height: 200 }
+        if (!imageResponse.ok) {
+          throw new Error(`이미지 로드 실패: ${imageResponse.status} ${imageResponse.statusText}`)
+        }
+        
+        const imageBuffer = await imageResponse.arrayBuffer()
+        console.log('이미지 버퍼 정보:', {
+          size: imageBuffer.byteLength,
+          type: typeof imageBuffer
         })
+        
+        if (imageBuffer.byteLength === 0) {
+          throw new Error('이미지 버퍼가 비어있습니다')
+        }
+        
+        // Content-Type에서 확장자 추출
+        const contentType = imageResponse.headers.get('content-type') || 'image/png'
+        let extension = 'png'
+        if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+          extension = 'jpeg'
+        } else if (contentType.includes('gif')) {
+          extension = 'gif'
+        } else if (contentType.includes('webp')) {
+          extension = 'png'
+        }
+        
+        console.log('이미지 추가 시작:', { extension, contentType })
+        const imageId = workbook.addImage({
+          buffer: imageBuffer,
+          extension: extension,
+        })
+        console.log('이미지 ID 생성 완료:', imageId)
+        
+        const imageConfig = {
+          tl: { col: 4.2, row: 8.2 }, // E9
+          br: { col: 13.8, row: 34.8 }, // N35
+          editAs: 'oneCell'
+        }
+        console.log('이미지 배치 설정:', imageConfig)
+        
+        worksheet.addImage(imageId, imageConfig)
+        console.log('✅ 이미지가 워크시트에 성공적으로 추가됨')
       } catch (error) {
-        console.error('이미지 삽입 오류:', error)
+        console.error('❌ 이미지 삽입 실패:', {
+          error: error.message,
+          stack: error.stack,
+          url: data.compositeImageUrl
+        })
       }
+    } else {
+      console.log('⚠️ 합성 이미지 URL이 없거나 비어있음:', data.compositeImageUrl)
     }
     
-    // 4. 엑셀을 Blob으로 변환
+    // 5. 엑셀을 Blob으로 변환
     const buffer = await workbook.xlsx.writeBuffer()
     return new Blob([buffer], { 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 

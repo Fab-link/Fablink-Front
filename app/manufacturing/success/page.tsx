@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Download, Home, MessageCircle, Calendar, FileText } from "lucide-react"
+import { CheckCircle, Download, Home, MessageCircle, Calendar, FileText, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { downloadWorksheetExcel } from "@/lib/pdfGenerator"
 
@@ -27,6 +27,8 @@ export default function ManufacturingSuccess() {
     const data = localStorage.getItem("manufacturingData")
     if (data) {
       const manufacturingData = JSON.parse(data)
+      console.log('localStorage 데이터:', manufacturingData)
+      console.log('compositeImageUrl:', manufacturingData.compositeImageUrl)
       
       // 작업지시서 데이터 구성
       const worksheetData = {
@@ -42,9 +44,11 @@ export default function ManufacturingSuccess() {
         material: manufacturingData.step4?.accessoryCode || '',
         dueDate: manufacturingData.due_date || new Date().toLocaleDateString('ko-KR'),
         memo: manufacturingData.memo || '',
-        compositeImageUrl: manufacturingData.compositeImageUrl || ''
+        compositeImageUrl: manufacturingData.compositeImageUrl || '',
+        contact: manufacturingData.designerContact || '010-0000-0000'
       }
       
+      console.log('워크시트 데이터:', worksheetData)
       downloadWorksheetExcel(worksheetData)
     }
   }
@@ -52,6 +56,17 @@ export default function ManufacturingSuccess() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
