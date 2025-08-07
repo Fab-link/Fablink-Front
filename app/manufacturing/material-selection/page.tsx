@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, ArrowRight, MessageCircle, Check, FactoryIcon as Fabric, Package, Send } from "lucide-react"
+import { ArrowLeft, ArrowRight, MessageCircle, Check, FactoryIcon as Fabric, Package, Send, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { manufacturingApi } from "@/lib/api/manufacturing"
 import { debugLog } from "@/lib/config"
@@ -197,6 +197,17 @@ export default function ManufacturingStep4() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
@@ -236,10 +247,10 @@ export default function ManufacturingStep4() {
 
                 <TabsContent value="direct" className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fabricCode">원단 코드</Label>
+                    <Label htmlFor="fabricCode">원단명</Label>
                     <Input
                       id="fabricCode"
-                      placeholder="원단 코드를 입력하세요 (예: FB001)"
+                      placeholder="원단 이름을 입력하세요 (예: 30수)"
                       value={fabricCode}
                       onChange={(e) => {
                         setFabricCode(e.target.value)
@@ -251,7 +262,7 @@ export default function ManufacturingStep4() {
                     <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="flex items-center space-x-2">
                         <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-800">원단 코드: {fabricCode}</span>
+                        <span className="text-sm font-medium text-green-800">원단명: {fabricCode}</span>
                       </div>
                     </div>
                   )}
@@ -388,10 +399,10 @@ export default function ManufacturingStep4() {
 
                 <TabsContent value="direct" className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="accessoryCode">부자재 상품 코드</Label>
+                    <Label htmlFor="accessoryCode">부자재 상품명</Label>
                     <Input
                       id="accessoryCode"
-                      placeholder="부자재 상품 코드를 입력하세요 (예: AC001)"
+                      placeholder="부자재 상품명을 입력하세요 (예: 광택 단추)"
                       value={accessoryCode}
                       onChange={(e) => {
                         setAccessoryCode(e.target.value)
@@ -403,7 +414,7 @@ export default function ManufacturingStep4() {
                     <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="flex items-center space-x-2">
                         <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-800">부자재 코드: {accessoryCode}</span>
+                        <span className="text-sm font-medium text-green-800">부자재 상품명: {accessoryCode}</span>
                       </div>
                     </div>
                   )}

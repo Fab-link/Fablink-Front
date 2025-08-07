@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, Brain, FactoryIcon as Fabric, Package } from "lucide-react"
+import { Loader2, Brain, FactoryIcon as Fabric, Package, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function ManufacturingStep3() {
@@ -54,6 +54,17 @@ export default function ManufacturingStep3() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
