@@ -85,35 +85,34 @@ export default function FactoryQuotesPage() {
       return
     }
 
+    const deliveryDays = quoteForm.deliveryDate ? 
+      Math.ceil((new Date(quoteForm.deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 7
+
     setSubmitting(true)
     try {
-      // TODO: API 엔드포인트 구현 후 사용
-      const quoteData = {
-        orderId: selectedOrder.id,
-        unitPrice: parseFloat(quoteForm.unitPrice),
-        totalPrice: parseFloat(quoteForm.unitPrice) * selectedOrder.quantity,
-        deliveryDate: quoteForm.deliveryDate,
-        notes: quoteForm.notes,
-        status: 'responded'
+      const bidData = {
+        order: selectedOrder.id,
+        unit_price: parseFloat(quoteForm.unitPrice),
+        estimated_delivery_days: Math.max(1, deliveryDays),
+        notes: quoteForm.notes
       }
       
-      console.log('제출할 견적 데이터:', quoteData)
+      await manufacturingApi.createBid(bidData)
       
-      // 실제 API 호출 예시:
-      // await manufacturingApi.updateOrder(selectedOrder.id, quoteData)
+      // 주문 목록 새로고침
+      const response = await manufacturingApi.getOrders()
+      const ordersData = response.results || response
+      setOrders(Array.isArray(ordersData) ? ordersData : [])
       
-      // 임시로 로컬 상태 업데이트
-      setOrders(prev => prev.map(order => 
-        order.id === selectedOrder.id 
-          ? { ...order, unitPrice: quoteData.unitPrice, totalPrice: quoteData.totalPrice, status: 'responded' }
-          : order
-      ))
-      
-      alert('견적이 성공적으로 제출되었습니다.')
+      alert('입찰이 성공적으로 제출되었습니다.')
       setShowQuoteModal(false)
-    } catch (error) {
-      console.error('견적 제출 실패:', error)
-      alert('견적 제출 중 오류가 발생했습니다.')
+    } catch (error: any) {
+      console.error('입찰 제출 실패:', error)
+      if (error.message?.includes('duplicate key') || error.message?.includes('중복')) {
+        alert('이미 이 주문에 대해 입찰을 제출하셨습니다.')
+      } else {
+        alert('입찰 제출 중 오류가 발생했습니다.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -237,7 +236,7 @@ export default function FactoryQuotesPage() {
                           <>
                             <Button size="sm" onClick={() => handleShowQuote(order)}>
                               <Edit className="h-4 w-4 mr-1" />
-                              견적 작성
+                              입찰 제출
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
                               <Eye className="h-4 w-4 mr-1" />
@@ -476,7 +475,7 @@ export default function FactoryQuotesPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center space-x-2">
                 <Edit className="h-5 w-5" />
-                <span>견적 작성</span>
+                <span>입찰 제출</span>
               </DialogTitle>
               <DialogDescription>
                 주문번호: {selectedOrder?.orderId} • 제품명: {selectedOrder?.productInfo?.name}
@@ -553,10 +552,10 @@ export default function FactoryQuotesPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="notes">견적 메모 (선택)</Label>
+                    <Label htmlFor="notes">입찰 메모 (선택)</Label>
                     <Textarea
                       id="notes"
-                      placeholder="견적에 대한 추가 설명이나 조건을 입력하세요..."
+                      placeholder="입찰에 대한 추가 설명이나 조건을 입력하세요..."
                       value={quoteForm.notes}
                       onChange={(e) => setQuoteForm({...quoteForm, notes: e.target.value})}
                       rows={3}
@@ -583,7 +582,7 @@ export default function FactoryQuotesPage() {
                         제출 중...
                       </>
                     ) : (
-                      '견적 제출'
+                      '입찰 제출'
                     )}
                   </Button>
                 </div>

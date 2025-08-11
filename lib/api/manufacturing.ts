@@ -26,6 +26,21 @@ export interface OrderData {
   notes?: string;
 }
 
+// FactoryBid 데이터 타입
+export interface FactoryBidData {
+  id?: number;
+  order: number;
+  factory?: number;
+  factory_info?: any;
+  unit_price: number;
+  estimated_delivery_days: number;
+  notes?: string;
+  status?: 'pending' | 'selected' | 'rejected';
+  total_price?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 /**
  * 제조 관련 API 함수 모음
  */
@@ -99,6 +114,35 @@ export const manufacturingApi = {
       method: 'PATCH',
       body: JSON.stringify(orderData),
     });
+  },
+
+  /**
+   * 특정 주문에 대한 입찰 목록 조회
+   * @param orderId 주문 ID
+   * @returns 입찰 목록
+   */
+  getBidsByOrder: async (orderId: number) => {
+    return apiClient.get(`/manufacturing/bids/by_order/?order_id=${orderId}`);
+  },
+
+  /**
+   * 입찰 선정
+   * @param bidId 입찰 ID
+   * @returns 선정된 입찰 정보
+   */
+  selectBid: async (bidId: number) => {
+    return apiClient.request(`/manufacturing/bids/${bidId}/select/`, {
+      method: 'PATCH',
+    });
+  },
+
+  /**
+   * 공장 입찰 생성
+   * @param bidData 입찰 데이터
+   * @returns 생성된 입찰 정보
+   */
+  createBid: async (bidData: any) => {
+    return apiClient.post('/manufacturing/bids/', bidData);
   },
 };
 
