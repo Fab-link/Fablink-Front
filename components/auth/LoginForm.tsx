@@ -15,6 +15,7 @@ interface LoginFormProps {
 export default function LoginForm({ redirectPath = '/dashboard' }: LoginFormProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState<'designer' | 'factory'>('designer');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
@@ -44,8 +45,8 @@ export default function LoginForm({ redirectPath = '/dashboard' }: LoginFormProp
       setIsSubmitting(true);
       setErrorMessage(null);
       
-      debugLog('로그인 시도:', { username, redirectPath });
-      const response = await login(username, password);
+      debugLog('로그인 시도:', { username, userType, redirectPath });
+      const response = await login(username, password, userType);
       debugLog('로그인 응답:', response);
       
       // 로그인 성공 시 리디렉션은 useEffect에서 처리
@@ -68,6 +69,37 @@ export default function LoginForm({ redirectPath = '/dashboard' }: LoginFormProp
             {errorMessage || error}
           </div>
         )}
+        
+        {/* 사용자 타입 선택 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">
+            사용자 타입
+          </label>
+          <div className="flex space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="designer"
+                checked={userType === 'designer'}
+                onChange={(e) => setUserType(e.target.value as 'designer' | 'factory')}
+                className="mr-2"
+                disabled={isSubmitting}
+              />
+              디자이너
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                value="factory"
+                checked={userType === 'factory'}
+                onChange={(e) => setUserType(e.target.value as 'designer' | 'factory')}
+                className="mr-2"
+                disabled={isSubmitting}
+              />
+              공장
+            </label>
+          </div>
+        </div>
         
         {/* 사용자명 입력 필드 */}
         <div className="mb-4">
