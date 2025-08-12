@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Shirt, Menu, Plus, FileText, User, LogOut } from "lucide-react"
+import { Shirt, Menu, Plus, FileText, User, LogOut, Calculator, ClipboardList, MessageSquare, DollarSign } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuthContext } from "@/contexts/AuthContext"
@@ -21,20 +21,20 @@ export default function DashboardPage() {
     
     if (!isLoading) {
       if (isAuthenticated && user) {
-        debugLog('받은 사용자 데이터:', user); // 실제 사용자 데이터 확인
+        debugLog('받은 사용자 데이터:', user);
         
-        // 백엔드 응답 필드명에 맞게 매핑 (camelCase)
         const newUserInfo = {
-          id: user.userId, // camelCase 필드 사용
+          id: user.userId || user.user_id || user.id,
           name: user.name,
-          userType: user.userType, // camelCase 필드 사용
+          userType: user.userType || user.user_type,
           loginTime: new Date().toISOString()
         };
         debugLog('설정할 사용자 정보:', newUserInfo);
         setUserInfo(newUserInfo);
       } else {
         debugLog('인증되지 않음, 로그인 페이지로 리디렉션');
-        router.push("/login");
+        router.replace("/login");
+        return;
       }
     }
   }, [isLoading, isAuthenticated, user, router])
@@ -46,7 +46,8 @@ export default function DashboardPage() {
     router.push("/")
   }
 
-  if (isLoading || !userInfo) {
+  // 인증되지 않은 경우 로딩 화면 표시 안함
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -55,6 +56,11 @@ export default function DashboardPage() {
         </div>
       </div>
     )
+  }
+  
+  // 인증되지 않았거나 사용자 정보가 없으면 null 반환 (리디렉션 중)
+  if (!isAuthenticated || !user || !userInfo) {
+    return null;
   }
 
   return (
@@ -90,7 +96,7 @@ export default function DashboardPage() {
                           </Button>
                         </Link>
 
-                        <Link href="/orders" onClick={() => setIsSheetOpen(false)}>
+                        <Link href="/designer/orders" onClick={() => setIsSheetOpen(false)}>
                           <Button variant="outline" className="w-full justify-start bg-transparent">
                             <FileText className="mr-2 h-4 w-4" />
                             주문 내역 조회
@@ -101,15 +107,33 @@ export default function DashboardPage() {
 
                     {userInfo.userType === "factory" && (
                       <>
-                        <Button variant="outline" className="w-full justify-start bg-transparent">
-                          <FileText className="mr-2 h-4 w-4" />
-                          작업 지시서 관리
-                        </Button>
+                        <Link href="/factory/quotes" onClick={() => setIsSheetOpen(false)}>
+                          <Button variant="outline" className="w-full justify-start bg-transparent">
+                            <Calculator className="mr-2 h-4 w-4" />
+                            요청된 견적 확인
+                          </Button>
+                        </Link>
 
-                        <Button variant="outline" className="w-full justify-start bg-transparent">
-                          <Plus className="mr-2 h-4 w-4" />
-                          생산 현황 업데이트
-                        </Button>
+                        <Link href="/factory/orders" onClick={() => setIsSheetOpen(false)}>
+                          <Button variant="outline" className="w-full justify-start bg-transparent">
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            주문 관리
+                          </Button>
+                        </Link>
+
+                        <Link href="/factory/feedback" onClick={() => setIsSheetOpen(false)}>
+                          <Button variant="outline" className="w-full justify-start bg-transparent">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            피드백 관리
+                          </Button>
+                        </Link>
+
+                        <Link href="/factory/settlement" onClick={() => setIsSheetOpen(false)}>
+                          <Button variant="outline" className="w-full justify-start bg-transparent">
+                            <DollarSign className="mr-2 h-4 w-4" />
+                            정산 관리
+                          </Button>
+                        </Link>
                       </>
                     )}
 
@@ -178,7 +202,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <Link href="/orders">
+                <Link href="/designer/orders">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <FileText className="h-5 w-5 text-green-600" />
@@ -199,29 +223,63 @@ export default function DashboardPage() {
           {userInfo.userType === "factory" && (
             <>
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    <span>작업 지시서 관리</span>
-                  </CardTitle>
-                  <CardDescription>새로운 작업 지시서를 확인하고 입찰합니다</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">디자이너가 요청한 작업 지시서를 확인하고 견적을 제출하세요.</p>
-                </CardContent>
+                <Link href="/factory/quotes">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Calculator className="h-5 w-5 text-blue-600" />
+                      <span>요청된 견적 확인</span>
+                    </CardTitle>
+                    <CardDescription>디자이너가 요청한 견적을 확인하고 응답합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">새로운 견적 요청을 확인하고 가격과 일정을 제안하세요.</p>
+                  </CardContent>
+                </Link>
               </Card>
 
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Plus className="h-5 w-5 text-green-600" />
-                    <span>생산 현황 업데이트</span>
-                  </CardTitle>
-                  <CardDescription>진행 중인 작업의 상태를 업데이트합니다</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">각 공정 단계별 진행 상황을 실시간으로 업데이트하세요.</p>
-                </CardContent>
+                <Link href="/factory/orders">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <ClipboardList className="h-5 w-5 text-green-600" />
+                      <span>주문 관리</span>
+                    </CardTitle>
+                    <CardDescription>진행 중인 주문의 상태를 관리합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">각 공정 단계별 진행 상황을 실시간으로 업데이트하세요.</p>
+                  </CardContent>
+                </Link>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <Link href="/factory/feedback">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <MessageSquare className="h-5 w-5 text-purple-600" />
+                      <span>피드백 관리</span>
+                    </CardTitle>
+                    <CardDescription>고객 피드백을 확인하고 응답합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">디자이너의 피드백을 확인하고 품질 개선에 반영하세요.</p>
+                  </CardContent>
+                </Link>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <Link href="/factory/settlement">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <DollarSign className="h-5 w-5 text-orange-600" />
+                      <span>정산 관리</span>
+                    </CardTitle>
+                    <CardDescription>완료된 주문의 정산을 관리합니다</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">완료된 작업에 대한 정산 내역을 확인하고 관리하세요.</p>
+                  </CardContent>
+                </Link>
               </Card>
             </>
           )}

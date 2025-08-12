@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, ArrowRight, CalendarIcon, Package, Clock, Ruler } from "lucide-react"
+import { ArrowLeft, ArrowRight, CalendarIcon, Package, Clock, Ruler, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
+
+import { manufacturingApi } from "@/lib/api/manufacturing"
 
 export default function ManufacturingStep5() {
   const router = useRouter()
@@ -23,18 +25,54 @@ export default function ManufacturingStep5() {
     totalQuantity: "",
     deliveryDate: undefined as Date | undefined,
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const existingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
-    localStorage.setItem(
-      "manufacturingData",
-      JSON.stringify({
-        ...existingData,
-        step5: formData,
-      }),
-    )
-    router.push("/manufacturing/final-notes")
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = manufacturingData.productId
+
+      if (!productId) {
+        setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
+        setIsLoading(false)
+        return
+      }
+
+      // 날짜를 YYYY-MM-DD 형식으로 변환
+      const dueDate = formData.deliveryDate ? format(formData.deliveryDate, 'yyyy-MM-dd') : null
+
+      const updateData = {
+        size: formData.sampleSize,
+        quantity: parseInt(formData.totalQuantity),
+        due_date: dueDate
+      }
+
+      console.log('Updating product with:', updateData)
+      
+      await manufacturingApi.updateProductJson(productId, updateData)
+
+      // localStorage에도 저장
+      const updatedData = {
+        ...manufacturingData,
+        size: formData.sampleSize,
+        quantity: formData.totalQuantity,
+        due_date: dueDate,
+        step5: formData
+      }
+      localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
+
+      router.push("/manufacturing/final-notes")
+    } catch (error) {
+      console.error('Submit error:', error)
+      setErrorMessage(`데이터 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleBack = () => {
@@ -50,6 +88,17 @@ export default function ManufacturingStep5() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Logo */}
+        <div className="mb-6">
+          <button 
+            onClick={() => router.push('/')}
+            className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
+          >
+            <Shirt className="h-8 w-8" />
+            <span className="text-2xl font-bold">Fablink</span>
+          </button>
+        </div>
+        
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
@@ -191,15 +240,22 @@ export default function ManufacturingStep5() {
               </Card>
             )}
 
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800 text-sm">{errorMessage}</p>
+              </div>
+            )}
+
             {/* Navigation */}
             <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={handleBack}>
+              <Button variant="outline" onClick={handleBack} disabled={isLoading}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 이전 단계
               </Button>
-              <Button type="submit" disabled={!isFormValid}>
-                다음 단계
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button type="submit" disabled={!isFormValid || isLoading}>
+                {isLoading ? '저장 중...' : '다음 단계'}
+                {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </div>
           </form>

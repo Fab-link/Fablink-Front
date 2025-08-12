@@ -1,6 +1,5 @@
 import { config, debugLog, isProduction } from '@/lib/config'
 import { Tokens } from '@/types/auth'
-import Cookies from 'js-cookie';
 
 class ApiClient {
     private apiUrl: string
@@ -9,7 +8,7 @@ class ApiClient {
 
     constructor() {
         this.apiUrl = config.apiUrl
-        this.timeout = config.apiTimeout
+        this.timeout = config.apiTimeout || 60000 // 기본 60초로 증가
         this.defaultHeaders = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -23,7 +22,8 @@ class ApiClient {
     }
 
     private getAuthHeaders(): Record<string, string> {
-        const token = Cookies.get('authToken');
+        // 세션 스토리지에서 토큰 가져오기 (서버 재시작 시 사라짐)
+        const token = typeof window !== 'undefined' ? sessionStorage.getItem('authToken') : null;
         if (token) {
             return { Authorization: `Bearer ${token}` };
         }
@@ -60,12 +60,17 @@ class ApiClient {
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`
                 try {
-                    const errorData = await response.json()
+                    const responseClone = response.clone()
+                    const errorData = await responseClone.json()
                     errorMessage = errorData.message || errorData.detail || errorMessage
                     debugLog('API 오류 응답:', errorData)
                 } catch {
-                    const errorText = await response.text()
-                    errorMessage = errorText || errorMessage
+                    try {
+                        const errorText = await response.text()
+                        errorMessage = errorText || errorMessage
+                    } catch {
+                        // response body를 읽을 수 없는 경우 기본 메시지 사용
+                    }
                 }
                 throw new Error(errorMessage)
             }
@@ -73,9 +78,20 @@ class ApiClient {
             const data = await response.json()
             debugLog('API 성공 응답:', data)
             return data
-        } catch (error) {
+        } catch (error: any) {
             clearTimeout(timeoutId)
             debugLog('API 요청 실패:', error)
+            
+            // AbortError 처리
+            if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+                throw new Error('요청 시간이 초과되었습니다. 다시 시도해주세요.')
+            }
+            
+            // 네트워크 오류 처리
+            if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+                throw new Error('네트워크 연결을 확인해주세요.')
+            }
+            
             throw error
         }
     }
@@ -108,18 +124,10 @@ class ApiClient {
     }
 
     async uploadFile<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' | 'PATCH' = 'POST'): Promise<T> {
-        const tokensJson = localStorage.getItem('authTokens')
-        let authHeaders = {}
-        
-        if (tokensJson) {
-            try {
-                const tokens: Tokens = JSON.parse(tokensJson)
-                authHeaders = { Authorization: `Bearer ${tokens.access}` }
-            } catch (error) {
-                debugLog('파일 업로드 시 토큰 파싱 오류:', error)
-            }
-        }
+        const authHeaders = this.getAuthHeaders()
 
+        debugLog('파일 업로드 요청:', { method, endpoint, authHeaders })
+        
         const response = await fetch(`${this.apiUrl}${endpoint}`, {
             method: method,
             headers: {
@@ -132,11 +140,16 @@ class ApiClient {
         if (!response.ok) {
             let errorMessage = `File upload failed! status: ${response.status}`
             try {
-                const errorData = await response.json()
+                const responseClone = response.clone()
+                const errorData = await responseClone.json()
                 errorMessage = errorData.message || errorData.detail || errorMessage
             } catch {
-                const errorText = await response.text()
-                errorMessage = errorText || errorMessage
+                try {
+                    const errorText = await response.text()
+                    errorMessage = errorText || errorMessage
+                } catch {
+                    // response body를 읽을 수 없는 경우
+                }
             }
             throw new Error(errorMessage)
         }

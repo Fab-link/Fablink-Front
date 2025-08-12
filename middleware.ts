@@ -7,6 +7,8 @@ const protectedPaths = [
   '/profile',
   '/manufacturing',
   '/design',
+  '/factory',
+  '/orders',
 ];
 
 // 인증 없이 접근 가능한 경로 목록
@@ -43,8 +45,7 @@ export function middleware(request: NextRequest) {
   }
 
   // 이미 로그인한 사용자가 로그인/회원가입 페이지에 접근하려는 경우
-  const isAuthPath = publicPaths.some(path => pathname === path);
-  if (isAuthPath && isAuthenticated && (pathname === '/login' || pathname === '/register')) {
+  if (isAuthenticated && (pathname === '/login' || pathname === '/register' || pathname === '/')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

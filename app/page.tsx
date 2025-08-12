@@ -1,9 +1,34 @@
+"use client"
+
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Shirt, Zap, Users, Award } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuthContext } from "@/contexts/AuthContext"
 
 export default function HomePage() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuthContext()
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/dashboard')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  // 로그인된 사용자는 대시보드로 리디렉션 중
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>대시보드로 이동 중...</p>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -46,7 +71,7 @@ export default function HomePage() {
             디자인부터 제작까지, AI가 도와주는 스마트한 의류 제작 플랫폼입니다. 전문가 수준의 품질로 여러분의 아이디어를
             현실로 만들어보세요.
           </p>
-          <Link href="/manufacturing">
+          <Link href="/login">
             <Button size="lg" className="px-8 py-4 text-lg">
               제작 시작하기
             </Button>
@@ -122,7 +147,7 @@ export default function HomePage() {
           </div>
 
           <div className="text-center mt-12">
-            <Link href="/manufacturing">
+            <Link href="/login">
               <Button size="lg" variant="outline">
                 지금 시작하기
               </Button>

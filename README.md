@@ -184,8 +184,14 @@ EOF
 ### 개발 서버 실행
 
 ```bash
-# 개발 모드로 서버 시작
+# 로컬 모드 
+npm run local
+
+# dev 모드
 npm run dev
+
+# prod 모드
+npm run prod
 ```
 
 성공적으로 실행되면 다음과 같은 메시지가 표시됩니다:
