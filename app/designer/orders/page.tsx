@@ -482,62 +482,189 @@ export default function DesignerOrdersPage() {
                                 <Card className="mt-4">
                                   <CardContent className="pt-6">
                                     {step.id === 1 && (
-                                      <div className="space-y-4">
-                                        <h4 className="font-medium">업체 입찰 현황</h4>
-                                        <BidsDisplay order={selectedOrder} onSelectBid={handleSelectBid} />
-                                      </div>
-                                    )}
-                                    {step.id === 2 && selectedOrder.unitPrice && (
-                                      <div className="space-y-4">
-                                        <h4 className="font-medium">견적 정보</h4>
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="flex items-center justify-between mb-4">
                                           <div>
-                                            <span className="text-gray-600">단가:</span>
-                                            <p className="font-medium text-blue-600">{selectedOrder.unitPrice.toLocaleString()}원</p>
+                                            <h4 className="font-medium flex items-center space-x-2">
+                                              <CheckCircle className="h-5 w-5 text-green-600" />
+                                              <span>샘플 제작 업체 선정</span>
+                                            </h4>
+                                            <p className="text-sm text-gray-600">완료일: 2024-01-16</p>
                                           </div>
-                                          <div>
-                                            <span className="text-gray-600">총액:</span>
-                                            <p className="font-medium text-blue-600">{selectedOrder.totalPrice?.toLocaleString()}원</p>
+                                          <Badge className="bg-green-600">완료</Badge>
+                                        </div>
+                                        <h5 className="font-medium mb-3">샘플 제작 업체 목록</h5>
+                                        <div className="space-y-3">
+                                          <div className="bg-white border rounded-lg p-4">
+                                            <div className="flex items-center space-x-4">
+                                              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                                <Factory className="h-8 w-8 text-gray-600" />
+                                              </div>
+                                              <div className="flex-1">
+                                                <h6 className="font-medium">프리미엄 샘플 공방</h6>
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                  <div className="flex items-center space-x-2">
+                                                    <Phone className="h-3 w-3" />
+                                                    <span>02-1234-5678</span>
+                                                  </div>
+                                                  <div className="flex items-center space-x-2">
+                                                    <MapPin className="h-3 w-3" />
+                                                    <span>서울시 강남구 테헤란로 123</span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+                                                  <Clock className="h-3 w-3" />
+                                                  <span>3-5일</span>
+                                                </div>
+                                                <div className="flex items-center space-x-2 font-medium text-lg">
+                                                  <Won className="h-4 w-4" />
+                                                  <span>150,000원</span>
+                                                </div>
+                                              </div>
+                                              <Button size="sm" className="bg-black text-white hover:bg-gray-800">
+                                                업체 선정
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          <div className="bg-white border rounded-lg p-4">
+                                            <div className="flex items-center space-x-4">
+                                              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                                <Factory className="h-8 w-8 text-gray-600" />
+                                              </div>
+                                              <div className="flex-1">
+                                                <h6 className="font-medium">스피드 샘플 제작소</h6>
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                  <div className="flex items-center space-x-2">
+                                                    <Phone className="h-3 w-3" />
+                                                    <span>02-8765-4321</span>
+                                                  </div>
+                                                  <div className="flex items-center space-x-2">
+                                                    <MapPin className="h-3 w-3" />
+                                                    <span>서울시 마포구 홍대로 456</span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+                                                  <Clock className="h-3 w-3" />
+                                                  <span>2-3일</span>
+                                                </div>
+                                                <div className="flex items-center space-x-2 font-medium text-lg">
+                                                  <Won className="h-4 w-4" />
+                                                  <span>180,000원</span>
+                                                </div>
+                                              </div>
+                                              <Button size="sm" className="bg-black text-white hover:bg-gray-800">
+                                                업체 선정
+                                              </Button>
+                                            </div>
                                           </div>
                                         </div>
-                                        {selectedOrder.status === 'responded' && (
-                                          <div className="flex space-x-2 pt-4 border-t">
-                                            <Button size="sm" onClick={() => handleAcceptQuote(selectedOrder.id)}>
-                                              <CheckCircle className="h-4 w-4 mr-1" />
-                                              견적 승인
-                                            </Button>
-                                            <Button 
-                                              size="sm" 
-                                              variant="outline" 
-                                              onClick={() => handleRejectQuote(selectedOrder.id)}
-                                              className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
-                                            >
-                                              <XCircle className="h-4 w-4 mr-1" />
-                                              견적 거절
-                                            </Button>
-                                          </div>
-                                        )}
                                       </div>
                                     )}
-                                    {step.id === 4 && selectedOrder.status === 'accepted' && (
-                                      <div className="space-y-4">
-                                        <h4 className="font-medium">생산 현황</h4>
-                                        <div className="space-y-3">
-                                          {productionStages.map((stage, stageIndex) => {
-                                            const isCompleted = stageIndex < 3
-                                            const isCurrent = stageIndex === 2
-                                            return (
-                                              <div key={stage.index} className="flex items-center space-x-3">
-                                                <div className={`w-4 h-4 rounded-full ${
-                                                  isCompleted ? 'bg-green-600' : 
-                                                  isCurrent ? 'bg-blue-600' : 'bg-gray-300'
-                                                }`} />
-                                                <span className="flex-1 text-sm">{stage.name}</span>
-                                                {isCompleted && <span className="text-xs text-gray-500">완료</span>}
-                                                {isCurrent && <Badge variant="secondary">진행중</Badge>}
+                                    {step.id === 2 && (
+                                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="flex items-center justify-between mb-4">
+                                          <div>
+                                            <h4 className="font-medium flex items-center space-x-2">
+                                              <Package className="h-5 w-5 text-blue-600" />
+                                              <span>샘플 생산 현황</span>
+                                            </h4>
+                                            <div className="flex justify-between items-center text-sm text-gray-600">
+                                              <span>주문 코드: {selectedOrder.orderId}</span>
+                                              <span>업체명: 프리미엄 샘플 공방</span>
+                                            </div>
+                                          </div>
+                                          <Badge variant="secondary">진행중</Badge>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                          <div>
+                                            <h5 className="font-medium mb-3">주문 정보</h5>
+                                            <div className="text-sm space-y-2">
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">주문 날짜:</span>
+                                                <span>2024-01-15</span>
                                               </div>
-                                            )
-                                          })}
+                                              <div className="flex justify-between">
+                                                <span className="text-gray-600">연락처:</span>
+                                                <span>02-1234-5678</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <h5 className="font-medium mb-3">생산 공정</h5>
+                                            <div className="space-y-3">
+                                              {[
+                                                { name: "1차 가봉", status: "done", date: "2024-01-17" },
+                                                { name: "부자재 부착", status: "done", date: "2024-01-18" },
+                                                { name: "마킹 및 재단", status: "active", date: null },
+                                                { name: "봉제", status: "pending", date: null },
+                                                { name: "검사 및 다림질", status: "pending", date: null },
+                                                { name: "배송 현황", status: "pending", date: null },
+                                              ].map((process, index) => (
+                                                <div key={index} className="flex items-center space-x-3">
+                                                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                                    process.status === "done" ? "bg-green-600" :
+                                                    process.status === "active" ? "bg-blue-600" : "bg-gray-300"
+                                                  }`}>
+                                                    {process.status === "done" && <Check className="h-2 w-2 text-white" />}
+                                                  </div>
+                                                  <span className="flex-1 text-sm">{process.name}</span>
+                                                  {process.status === "done" && process.date && (
+                                                    <span className="text-xs text-gray-500">{process.date}</span>
+                                                  )}
+                                                  {process.status === "active" && <Badge variant="secondary">진행중</Badge>}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {step.id === 4 && (
+                                      <div className="space-y-4">
+                                        <h4 className="font-medium">샘플 피드백</h4>
+                                        <div className="border rounded-lg p-4">
+                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                              <img
+                                                src="/placeholder.svg?height=150&width=150"
+                                                alt="샘플 사진"
+                                                className="w-full h-32 object-cover rounded-lg bg-gray-200"
+                                              />
+                                            </div>
+                                            <div>
+                                              <h5 className="font-medium mb-2">1차 생산</h5>
+                                              <div className="text-sm text-gray-600 space-y-1">
+                                                <div className="flex items-center space-x-2">
+                                                  <Phone className="h-3 w-3" />
+                                                  <span>02-1234-5678</span>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                  <MapPin className="h-3 w-3" />
+                                                  <span>서울시 강남구 테헤란로 123</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600">피드백 상태:</span>
+                                                <Badge variant="outline">배송 완료</Badge>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Button size="sm" variant="outline" className="w-full bg-transparent">
+                                                  <Edit className="h-3 w-3 mr-1" />
+                                                  작업 지시서 수정
+                                                </Button>
+                                                <Button size="sm" className="w-full">
+                                                  <Check className="h-3 w-3 mr-1" />
+                                                  작업 지시서 확정
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
                                     )}
