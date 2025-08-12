@@ -24,15 +24,18 @@ import {
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
-// 샘플 주문 데이터
+// DB 구조에 맞는 주문 데이터
 const sampleOrders = [
   {
-    id: "MFG-12345678",
-    productName: "여성용 캐주얼 블라우스",
+    order_id: "ORD-20240115-MFG12345",
+    product: {
+      name: "여성용 캐주얼 블라우스",
+      designer: { name: "김디자이너", user_id: "designer01" }
+    },
     quantity: 500,
-    status: "sample_production",
-    createdAt: "2024-01-15",
-    currentStep: 2,
+    status: "in_production",
+    created_at: "2024-01-15",
+    current_step_index: 2,
     steps: [
       { id: 1, name: "샘플 제작 업체 선정", status: "done", completedAt: "2024-01-16" },
       { id: 2, name: "샘플 생산 현황", status: "active", completedAt: null },
@@ -44,12 +47,15 @@ const sampleOrders = [
     ],
   },
   {
-    id: "MFG-87654321",
-    productName: "남성용 정장 셔츠",
+    order_id: "ORD-20240110-MFG87654",
+    product: {
+      name: "남성용 정장 셔츠",
+      designer: { name: "박디자이너", user_id: "designer02" }
+    },
     quantity: 300,
-    status: "sample_feedback",
-    createdAt: "2024-01-10",
-    currentStep: 4,
+    status: "in_production",
+    created_at: "2024-01-10",
+    current_step_index: 4,
     steps: [
       { id: 1, name: "샘플 제작 업체 선정", status: "done", completedAt: "2024-01-11" },
       { id: 2, name: "샘플 생산 현황", status: "done", completedAt: "2024-01-18" },
@@ -62,25 +68,35 @@ const sampleOrders = [
   },
 ]
 
-// 샘플 업체 데이터
-const sampleFactories = [
+// DB 구조에 맞는 공장 입찰 데이터 (FactoryBid 모델)
+const sampleFactoryBids = [
   {
     id: 1,
-    name: "프리미엄 샘플 공방",
-    contact: "02-1234-5678",
-    address: "서울시 강남구 테헤란로 123",
-    estimatedTime: "3-5일",
-    price: 150000,
-    image: "/placeholder.svg?height=80&width=80",
+    factory: {
+      user_id: "factory01",
+      name: "프리미엄 샘플 공방",
+      contact: "02-1234-5678",
+      address: "서울시 강남구 테헤란로 123"
+    },
+    unit_price: 150000,
+    estimated_delivery_days: 4,
+    status: "selected",
+    notes: "고품질 샘플 제작 전문",
+    created_at: "2024-01-15"
   },
   {
     id: 2,
-    name: "스피드 샘플 제작소",
-    contact: "02-8765-4321",
-    address: "서울시 마포구 홍대로 456",
-    estimatedTime: "2-3일",
-    price: 180000,
-    image: "/placeholder.svg?height=80&width=80",
+    factory: {
+      user_id: "factory02",
+      name: "스피드 샘플 제작소",
+      contact: "02-8765-4321",
+      address: "서울시 마포구 홍대로 456"
+    },
+    unit_price: 180000,
+    estimated_delivery_days: 3,
+    status: "pending",
+    notes: "빠른 제작 가능",
+    created_at: "2024-01-15"
   },
 ]
 
@@ -139,56 +155,63 @@ export default function OrdersPage() {
         return (
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>샘플 제작 업체 목록</CardTitle>
-              <CardDescription>주문 코드: {order.id}</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span>샘플 제작 업체 선정</span>
+                  </CardTitle>
+                  <CardDescription>완료일: 2024-01-16</CardDescription>
+                </div>
+                <Badge className="bg-green-600">완료</Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              {sampleFactories.length > 0 ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium mb-3">샘플 제작 업체 목록</h4>
+                <CardDescription className="mb-4">주문 코드: {order.order_id}</CardDescription>
+                
                 <div className="space-y-4">
-                  {sampleFactories.map((factory) => (
+                  {sampleFactoryBids.map((bid) => (
                     <div
-                      key={factory.id}
-                      className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      key={bid.id}
+                      className="flex items-center space-x-4 p-4 bg-white border rounded-lg"
                     >
                       <img
-                        src={factory.image || "/placeholder.svg"}
-                        alt={factory.name}
-                        className="w-16 h-16 rounded-lg object-cover"
+                        src="/placeholder.svg"
+                        alt={bid.factory.name}
+                        className="w-16 h-16 rounded-lg object-cover bg-gray-200"
                       />
                       <div className="flex-1">
-                        <h4 className="font-medium">{factory.name}</h4>
+                        <h4 className="font-medium">{bid.factory.name}</h4>
                         <div className="text-sm text-gray-600 space-y-1">
                           <div className="flex items-center space-x-2">
                             <Phone className="h-3 w-3" />
-                            <span>{factory.contact}</span>
+                            <span>{bid.factory.contact}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <MapPin className="h-3 w-3" />
-                            <span>{factory.address}</span>
+                            <span>{bid.factory.address}</span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
                           <Clock className="h-3 w-3" />
-                          <span>{factory.estimatedTime}</span>
+                          <span>{bid.estimated_delivery_days}일</span>
                         </div>
-                        <div className="flex items-center space-x-2 font-medium">
+                        <div className="flex items-center space-x-2 font-medium text-lg">
                           <Won className="h-4 w-4" />
-                          <span>{factory.price.toLocaleString()}원</span>
+                          <span>{bid.unit_price.toLocaleString()}원</span>
                         </div>
                       </div>
-                      <Button size="sm">업체 선정</Button>
+                      <Button size="sm" className="bg-black text-white hover:bg-gray-800">
+                        업체 선정
+                      </Button>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Factory className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>현재 입찰 가능한 업체가 없습니다.</p>
-                  <p className="text-sm">업체가 작업지시서를 확인 후 입찰하면 목록에 표시됩니다.</p>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         )
@@ -197,50 +220,65 @@ export default function OrdersPage() {
         return (
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>샘플 생산 현황</CardTitle>
-              <CardDescription>
-                <div className="flex justify-between items-center">
-                  <span>주문 코드: {order.id}</span>
-                  <span>업체명: 프리미엄 샘플 공방</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Package className="h-5 w-5 text-blue-600" />
+                    <span>샘플 생산 현황</span>
+                  </CardTitle>
+                  <CardDescription>
+                    <div className="flex justify-between items-center">
+                      <span>주문 코드: {order.order_id}</span>
+                      <span>업체명: 프리미엄 샘플 공방</span>
+                    </div>
+                  </CardDescription>
                 </div>
-              </CardDescription>
+                <Badge variant="secondary">진행중</Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-3">주문 정보</h4>
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">주문 날짜:</span>
-                      <span>{order.createdAt}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">연락처:</span>
-                      <span>02-1234-5678</span>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium mb-3">주문 정보</h4>
+                    <div className="text-sm space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">주문 날짜:</span>
+                        <span>2024-01-15</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">연락처:</span>
+                        <span>02-1234-5678</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <h4 className="font-medium mb-3">생산 공정</h4>
-                  <div className="space-y-3">
-                    {[
-                      { name: "1차 가봉", status: "done", date: "2024-01-17" },
-                      { name: "부자재 부착", status: "done", date: "2024-01-18" },
-                      { name: "마킹 및 재단", status: "active", date: null },
-                      { name: "봉제", status: "pending", date: null },
-                      { name: "검사 및 다림질", status: "pending", date: null },
-                      { name: "배송", status: "pending", date: null },
-                    ].map((process, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <div className={`w-4 h-4 rounded-full ${getStatusColor(process.status)}`} />
-                        <span className="flex-1 text-sm">{process.name}</span>
-                        {process.status === "done" && process.date && (
-                          <span className="text-xs text-gray-500">{process.date}</span>
-                        )}
-                        {process.status === "active" && <Badge variant="secondary">진행중</Badge>}
-                      </div>
-                    ))}
+                  <div>
+                    <h4 className="font-medium mb-3">생산 공정</h4>
+                    <div className="space-y-3">
+                      {[
+                        { name: "1차 가봉", status: "done", date: "2024-01-17" },
+                        { name: "부자재 부착", status: "done", date: "2024-01-18" },
+                        { name: "마킹 및 재단", status: "active", date: null },
+                        { name: "봉제", status: "pending", date: null },
+                        { name: "검사 및 다림질", status: "pending", date: null },
+                        { name: "배송 현황", status: "pending", date: null },
+                      ].map((process, index) => (
+                        <div key={index} className="flex items-center space-x-3">
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                            process.status === "done" ? "bg-green-600" :
+                            process.status === "active" ? "bg-blue-600" : "bg-gray-300"
+                          }`}>
+                            {process.status === "done" && <Check className="h-2 w-2 text-white" />}
+                          </div>
+                          <span className="flex-1 text-sm">{process.name}</span>
+                          {process.status === "done" && process.date && (
+                            <span className="text-xs text-gray-500">{process.date}</span>
+                          )}
+                          {process.status === "active" && <Badge variant="secondary">진행중</Badge>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,9 +399,9 @@ export default function OrdersPage() {
                 <div className="space-y-3">
                   {sampleOrders.map((order) => (
                     <div
-                      key={order.id}
+                      key={order.order_id}
                       className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                        selectedOrder?.id === order.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
+                        selectedOrder?.order_id === order.order_id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
                       }`}
                       onClick={() => {
                         setSelectedOrder(order)
@@ -371,15 +409,15 @@ export default function OrdersPage() {
                       }}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-sm">{order.productName}</h4>
+                        <h4 className="font-medium text-sm">{order.product.name}</h4>
                         <Badge variant="outline" className="text-xs">
                           {order.quantity}개
                         </Badge>
                       </div>
-                      <p className="text-xs text-gray-600 mb-2">{order.id}</p>
+                      <p className="text-xs text-gray-600 mb-2">{order.order_id}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{order.createdAt}</span>
-                        <Progress value={(order.currentStep / 7) * 100} className="w-16 h-2" />
+                        <span className="text-xs text-gray-500">{order.created_at}</span>
+                        <Progress value={(order.current_step_index / 7) * 100} className="w-16 h-2" />
                       </div>
                     </div>
                   ))}
@@ -395,8 +433,8 @@ export default function OrdersPage() {
                 {/* Order Info */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>{selectedOrder.productName}</CardTitle>
-                    <CardDescription>주문 코드: {selectedOrder.id}</CardDescription>
+                    <CardTitle>{selectedOrder.product.name}</CardTitle>
+                    <CardDescription>주문 코드: {selectedOrder.order_id}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 gap-4 text-sm">
@@ -406,11 +444,11 @@ export default function OrdersPage() {
                       </div>
                       <div>
                         <span className="text-gray-600">주문일:</span>
-                        <p className="font-medium">{selectedOrder.createdAt}</p>
+                        <p className="font-medium">{selectedOrder.created_at}</p>
                       </div>
                       <div>
                         <span className="text-gray-600">진행률:</span>
-                        <p className="font-medium">{selectedOrder.currentStep}/7 단계</p>
+                        <p className="font-medium">{selectedOrder.current_step_index}/7 단계</p>
                       </div>
                     </div>
                   </CardContent>

@@ -60,12 +60,17 @@ class ApiClient {
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`
                 try {
-                    const errorData = await response.json()
+                    const responseClone = response.clone()
+                    const errorData = await responseClone.json()
                     errorMessage = errorData.message || errorData.detail || errorMessage
                     debugLog('API 오류 응답:', errorData)
                 } catch {
-                    const errorText = await response.text()
-                    errorMessage = errorText || errorMessage
+                    try {
+                        const errorText = await response.text()
+                        errorMessage = errorText || errorMessage
+                    } catch {
+                        // response body를 읽을 수 없는 경우 기본 메시지 사용
+                    }
                 }
                 throw new Error(errorMessage)
             }
@@ -135,11 +140,16 @@ class ApiClient {
         if (!response.ok) {
             let errorMessage = `File upload failed! status: ${response.status}`
             try {
-                const errorData = await response.json()
+                const responseClone = response.clone()
+                const errorData = await responseClone.json()
                 errorMessage = errorData.message || errorData.detail || errorMessage
             } catch {
-                const errorText = await response.text()
-                errorMessage = errorText || errorMessage
+                try {
+                    const errorText = await response.text()
+                    errorMessage = errorText || errorMessage
+                } catch {
+                    // response body를 읽을 수 없는 경우
+                }
             }
             throw new Error(errorMessage)
         }
