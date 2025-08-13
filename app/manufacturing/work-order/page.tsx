@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, ArrowRight, Download, FileText, Edit, Calendar, Package, Shirt } from "lucide-react"
+import { ArrowLeft, ArrowRight, FileText, Edit, Calendar, Package, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
@@ -14,7 +14,6 @@ import { ko } from "date-fns/locale"
 export default function ManufacturingStep7() {
   const router = useRouter()
   const [orderData, setOrderData] = useState<any>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     // Load all manufacturing data
@@ -24,114 +23,8 @@ export default function ManufacturingStep7() {
     }
   }, [])
 
-  const handleDownloadWorkOrder = async () => {
-    setIsGenerating(true)
 
-    // Simulate PDF generation
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Generate work order content
-    const workOrderContent = generateWorkOrderContent(orderData)
-
-    // Create and download file
-    const blob = new Blob([workOrderContent], { type: "text/plain;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `작업지시서_${Date.now()}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-
-    setIsGenerating(false)
-  }
-
-  const generateWorkOrderContent = (data: any) => {
-    const deliveryDate = data.due_date ? new Date(data.due_date) : (data.step5?.deliveryDate ? new Date(data.step5.deliveryDate) : null)
-    
-    // 원단 정보 파싱
-    let fabricInfo = ""
-    if (data.fabric) {
-      try {
-        const fabricData = typeof data.fabric === 'string' ? JSON.parse(data.fabric) : data.fabric
-        fabricInfo = `${fabricData.name || fabricData.code || data.step4?.fabricCode || ""}`
-      } catch {
-        fabricInfo = data.step4?.fabricCode || ""
-      }
-    } else {
-      fabricInfo = data.step4?.fabricCode || ""
-    }
-    
-    // 부자재 정보 파싱
-    let materialInfo = ""
-    if (data.material) {
-      try {
-        const materialData = typeof data.material === 'string' ? JSON.parse(data.material) : data.material
-        materialInfo = `${materialData.name || materialData.code || data.step4?.accessoryCode || ""}`
-      } catch {
-        materialInfo = data.step4?.accessoryCode || ""
-      }
-    } else {
-      materialInfo = data.step4?.accessoryCode || ""
-    }
-
-    return `
-===========================================
-           의류 제작 작업 지시서
-===========================================
-
-주문 번호: MFG-${Date.now().toString().slice(-8)}
-작성일: ${format(new Date(), "PPP", { locale: ko })}
-
-===========================================
-1. 제품 기본 정보
-===========================================
-제품명: ${data.name || data.step1?.productName || ""}
-시즌: ${data.season || data.step1?.season || ""}
-타겟 고객층: ${data.target_customer || data.step1?.targetCustomer || ""}
-컨셉: ${data.concept || data.step1?.concept || ""}
-
-===========================================
-2. 디자인 정보
-===========================================
-업로드된 파일 수: ${data.step2?.files || 0}개
-포인트 부위 설명:
-${data.detail || data.step2?.pointDescription || ""}
-
-===========================================
-3. 재료 정보
-===========================================
-선택된 원단: ${fabricInfo}
-선택된 부자재: ${materialInfo}
-
-===========================================
-4. 생산 정보
-===========================================
-샘플 사이즈: ${(data.size || data.step5?.sampleSize)?.toUpperCase() || ""}
-총 생산 수량: ${data.quantity || data.step5?.totalQuantity || ""}개
-납기일: ${deliveryDate ? format(deliveryDate, "PPP", { locale: ko }) : ""}
-
-===========================================
-5. 특별 참고사항
-===========================================
-${data.memo || data.step6?.finalNotes || "특별한 요청사항 없음"}
-
-===========================================
-6. 작업 체크리스트
-===========================================
-□ 디자인 검토 완료
-□ 원단 및 부자재 준비
-□ 샘플 제작
-□ 샘플 승인
-□ 대량 생산 시작
-□ 품질 검사
-□ 포장 및 출고
-
-===========================================
-담당자: _______________
-승인일: _______________
-===========================================
-    `
-  }
+  // 다운로드 기능 제거로 관련 문자열 생성 함수도 제거되었습니다.
 
   const handleBack = () => {
     router.push("/manufacturing/final-notes")
@@ -262,14 +155,14 @@ ${data.memo || data.step6?.finalNotes || "특별한 요청사항 없음"}
                     수정
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">원단 코드:</span>
-                    <p className="font-medium font-mono">{orderData.step4?.fabricCode}</p>
+            <p className="font-medium">{orderData.step4?.fabricCode}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">부자재 코드:</span>
-                    <p className="font-medium font-mono">{orderData.step4?.accessoryCode}</p>
+            <p className="font-medium">{orderData.step4?.accessoryCode}</p>
                   </div>
                 </div>
               </div>
@@ -323,30 +216,7 @@ ${data.memo || data.step6?.finalNotes || "특별한 요청사항 없음"}
             </CardContent>
           </Card>
 
-          {/* Download Section */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-900">작업 지시서 다운로드</CardTitle>
-              <CardDescription className="text-blue-700">
-                작업 지시서를 다운로드하여 보관하거나 인쇄할 수 있습니다
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={handleDownloadWorkOrder} disabled={isGenerating} className="w-full">
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    생성 중...
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    작업 지시서 다운로드
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+          {/* 다운로드 섹션 제거 */}
 
           {/* Navigation */}
           <div className="flex justify-between pt-4">

@@ -12,10 +12,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, ArrowRight, Upload, X, ImageIcon, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { manufacturingApi } from "@/lib/api/manufacturing"
+// 이 단계에서는 서버 통신 없이 localStorage만 갱신합니다.
+import { useManufacturingContext } from "@/contexts/ManufacturingContext"
 
 export default function ManufacturingStep2() {
   const router = useRouter()
+  const { setDesignFiles } = useManufacturingContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [pointDescription, setPointDescription] = useState("")
@@ -45,6 +47,8 @@ export default function ManufacturingStep2() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     setUploadedFiles((prev) => [...prev, ...files])
+  // 컨텍스트에 최신 파일 목록을 저장하여 Step8에서 사용
+  setDesignFiles([...uploadedFiles, ...files])
     
     // 첫 번째 파일을 미리보기 이미지로 설정
     if (files.length > 0) {
@@ -76,7 +80,7 @@ export default function ManufacturingStep2() {
   }
   
   // Canvas로 합성 이미지 생성
-  const generateCompositeImage = async (): Promise<Blob | null> => {
+  const generateCompositeImage = async (): Promise<string | null> => {
     if (!selectedGarmentType || !previewImage) return null
     
     const canvas = document.createElement('canvas')
@@ -86,7 +90,7 @@ export default function ManufacturingStep2() {
     canvas.width = 800
     canvas.height = 800
     
-    return new Promise((resolve) => {
+  return new Promise((resolve) => {
       const garmentImg = new Image()
       garmentImg.crossOrigin = 'anonymous'
       garmentImg.onload = () => {
@@ -123,7 +127,8 @@ export default function ManufacturingStep2() {
             ctx.drawImage(designImg, x, y - height/2, width, height)
           })
           
-          canvas.toBlob(resolve, 'image/png')
+          // data URL로 저장하여 이후 제출 시 재구성 없이 활용
+          resolve(canvas.toDataURL('image/png'))
         }
         designImg.src = previewImage
       }
@@ -149,32 +154,25 @@ export default function ManufacturingStep2() {
         return
       }
 
-      const formData = new FormData()
-      formData.append("detail", pointDescription)
-      if (uploadedFiles.length > 0) {
-        formData.append("image_path", uploadedFiles[0])
-      }
-
-      console.log('Submitting form data:', {
+      console.log('Saving step2 to localStorage:', {
         detail: pointDescription,
         hasImage: uploadedFiles.length > 0,
         fileName: uploadedFiles[0]?.name
       })
 
-      // 합성 이미지 생성 및 저장
-      const compositeBlob = await generateCompositeImage()
-      if (compositeBlob) {
-        formData.append("composite_image", compositeBlob, "design_preview.png")
-      }
-      
-      const result = await manufacturingApi.updateProduct(productId, formData)
-      console.log('Update result:', result)
+      // 합성 이미지 생성 및 dataURL 저장
+      const compositeDataUrl = await generateCompositeImage()
 
-      // 업데이트된 데이터를 localStorage에 저장
-      const updatedData = { 
-        ...manufacturingData, 
-        ...result, // API 응답의 모든 데이터 포함
-        detail: pointDescription
+      const updatedData = {
+        ...manufacturingData,
+        detail: pointDescription,
+        step2: {
+          pointDescription,
+          files: uploadedFiles.length,
+          fileNames: uploadedFiles.map(f => f.name),
+        },
+        // 미리보기/워크시트용 저장(최종 제출용으로 dataURL 보관)
+        compositeImageUrl: compositeDataUrl || manufacturingData.compositeImageUrl || null,
       }
       localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
 
@@ -191,7 +189,7 @@ export default function ManufacturingStep2() {
     router.push("/manufacturing")
   }
 
-  const isFormValid = pointDescription.trim() // 이미지는 선택사항으로 변경
+  const isFormValid = pointDescription.trim() // 이미지/옵션은 선택사항
 
   return (
     <div className="min-h-screen bg-gray-50 py-4">

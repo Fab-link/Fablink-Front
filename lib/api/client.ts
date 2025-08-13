@@ -69,11 +69,8 @@ class ApiClient {
                         const errorText = await response.text()
                         errorMessage = errorText || errorMessage
                     } catch {
-<<<<<<< Updated upstream
                         // response body를 읽을 수 없는 경우 기본 메시지 사용
-=======
-                        // Response body를 읽을 수 없는 경우 기본 메시지 사용
->>>>>>> Stashed changes
+                        errorMessage = 'response body를 읽을 수 없습니다.'
                     }
                 }
                 throw new Error(errorMessage)

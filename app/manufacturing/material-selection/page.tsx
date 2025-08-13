@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, ArrowRight, MessageCircle, Check, FactoryIcon as Fabric, Package, Send, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { manufacturingApi } from "@/lib/api/manufacturing"
+// 이 단계에서는 서버 업데이트 없이 localStorage만 갱신합니다.
 import { debugLog } from "@/lib/config"
 
 export default function ManufacturingStep4() {
@@ -66,10 +66,8 @@ export default function ManufacturingStep4() {
       };
       debugLog('업데이트할 제품 데이터:', productDataToUpdate);
 
-      await manufacturingApi.updateProductJson(productId, productDataToUpdate);
-      debugLog('API 호출 성공');
-
-      localStorage.setItem(
+  // 서버로 보내지 않고 저장만 수행
+  localStorage.setItem(
         "manufacturingData",
         JSON.stringify({
           ...manufacturingData,
