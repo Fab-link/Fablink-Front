@@ -144,6 +144,13 @@ export const manufacturingApi = {
   createBid: async (bidData: any) => {
     return apiClient.post('/manufacturing/bids/', bidData);
   },
+  
+  /**
+   * 단일 제출: Product -> Order -> RequestOrder 생성(멀티파트)
+   */
+  submitManufacturing: async (formData: FormData) => {
+    return apiClient.uploadFile('/manufacturing/submit/', formData, 'POST');
+  },
 };
 
 /**

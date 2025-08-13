@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 
-import { manufacturingApi } from "@/lib/api/manufacturing"
+// 이 단계에서는 서버 업데이트 없이 localStorage만 갱신합니다.
 
 export default function ManufacturingStep5() {
   const router = useRouter()
@@ -46,17 +46,7 @@ export default function ManufacturingStep5() {
       // 날짜를 YYYY-MM-DD 형식으로 변환
       const dueDate = formData.deliveryDate ? format(formData.deliveryDate, 'yyyy-MM-dd') : null
 
-      const updateData = {
-        size: formData.sampleSize,
-        quantity: parseInt(formData.totalQuantity),
-        due_date: dueDate
-      }
-
-      console.log('Updating product with:', updateData)
-      
-      await manufacturingApi.updateProductJson(productId, updateData)
-
-      // localStorage에도 저장
+  // localStorage에 저장
       const updatedData = {
         ...manufacturingData,
         size: formData.sampleSize,

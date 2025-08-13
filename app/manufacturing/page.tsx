@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowRight, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { manufacturingApi } from "@/lib/api/manufacturing"
+// Per-step DB 호출을 중단하고 localStorage에만 저장합니다.
 
 export default function ManufacturingStep1() {
   const router = useRouter()
@@ -26,23 +26,40 @@ export default function ManufacturingStep1() {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  const TARGET_LABELS: Record<string, string> = {
+    teens: '10대',
+    twenties: '20대',
+    thirties: '30대',
+    forties: '40대',
+    'fifties-plus': '50대 이상',
+    'all-ages': '전 연령',
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setErrorMessage(null)
 
     try {
-      console.log('Submitting form data:', formData)
-      const response = await manufacturingApi.createProduct(formData)
-      console.log('Create product response:', response)
-      
-      if (!response.id) {
-        throw new Error('제품 ID가 반환되지 않았습니다.')
-      }
-      
+      console.log('Saving step1 to localStorage:', formData)
+      // 임시 productId 생성(최종 제출 시 서버에서 실제 ID 생성 예정)
+      const existing = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      const productId = existing.productId || Date.now()
+      const targetLabel = TARGET_LABELS[formData.target_customer] || formData.target_customer
       const manufacturingData = {
-        productId: response.id,
-        ...formData
+        productId,
+        name: formData.name,
+        season: formData.season,
+        target_customer: targetLabel, // 한글 라벨 저장
+        target_customer_code: formData.target_customer, // 코드 병행 저장(제출용)
+        concept: formData.concept,
+        step1: {
+          productName: formData.name,
+          season: formData.season,
+          targetCustomer: targetLabel,
+          targetCustomerCode: formData.target_customer,
+          concept: formData.concept,
+        }
       }
       
       localStorage.setItem("manufacturingData", JSON.stringify(manufacturingData))

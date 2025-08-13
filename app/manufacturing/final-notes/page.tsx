@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, CheckCircle, FileText, Send, Shirt } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { manufacturingApi } from "@/lib/api/manufacturing"
+// 이 단계에서는 서버 업데이트 없이 localStorage만 갱신합니다.
 
 export default function ManufacturingStep6() {
   const router = useRouter()
@@ -34,13 +34,6 @@ export default function ManufacturingStep6() {
         setErrorMessage("제품 ID를 찾을 수 없습니다. 이전 단계로 돌아가 다시 시도해주세요.")
         setIsSubmitting(false)
         return
-      }
-
-      // 백엔드에 메모 저장
-      if (finalNotes.trim()) {
-        await manufacturingApi.updateProductJson(productId, {
-          memo: finalNotes.trim()
-        })
       }
 
       // localStorage에 최종 데이터 저장

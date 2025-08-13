@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Download, Home, MessageCircle, Calendar, FileText, Shirt } from "lucide-react"
@@ -8,12 +9,49 @@ import { downloadWorksheetExcel } from "@/lib/pdfGenerator"
 
 export default function ManufacturingSuccess() {
   const router = useRouter()
+  const [data, setData] = useState<any>(null)
+
+  useEffect(() => {
+    const raw = localStorage.getItem("manufacturingData")
+    if (raw) setData(JSON.parse(raw))
+  }, [])
+
+  const displayOrderNo = useMemo(() => {
+    if (!data) return `MFG-${Date.now().toString().slice(-8)}`
+    const raw = data.order_id ?? data.orderId ?? data.step8?.orderId
+    return raw ? `MFG-${raw}` : `MFG-${Date.now().toString().slice(-8)}`
+  }, [data])
+
+  const displayOrderedAt = useMemo(() => {
+    const ts = data?.step8?.orderedAt
+    return ts ? new Date(ts).toLocaleString("ko-KR") : new Date().toLocaleString("ko-KR")
+  }, [data?.step8?.orderedAt])
+
+  const detailProductName = useMemo(() => (
+    data?.name || data?.step1?.productName || ""
+  ), [data])
+
+  const detailQuantity = useMemo(() => (
+    data?.quantity || data?.step5?.totalQuantity || ""
+  ), [data])
+
+  const detailDueDate = useMemo(() => {
+    const d = data?.due_date || data?.step5?.deliveryDate
+    if (!d) return ""
+    try { return new Date(d).toLocaleDateString('ko-KR') } catch { return String(d) }
+  }, [data])
+
+  const detailFinalPrice = useMemo(() => {
+    const price = data?.step8?.pricing?.finalPrice
+    if (!price && price !== 0) return ""
+    return Number(price).toLocaleString('ko-KR') + "원"
+  }, [data])
 
   const handleDownloadSummary = () => {
     // Generate and download order summary
-    const data = localStorage.getItem("manufacturingData")
-    if (data) {
-      const blob = new Blob([data], { type: "application/json" })
+    const raw = localStorage.getItem("manufacturingData")
+    if (raw) {
+      const blob = new Blob([raw], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
@@ -24,26 +62,24 @@ export default function ManufacturingSuccess() {
   }
 
   const handleDownloadWorksheet = () => {
-    const data = localStorage.getItem("manufacturingData")
-    if (data) {
-      const manufacturingData = JSON.parse(data)
-      console.log('localStorage 데이터:', manufacturingData)
-      console.log('compositeImageUrl:', manufacturingData.compositeImageUrl)
+    const raw = localStorage.getItem("manufacturingData")
+    if (raw) {
+      const manufacturingData = JSON.parse(raw)
       
       // 작업지시서 데이터 구성
       const worksheetData = {
-        productName: manufacturingData.name || '제품명',
+  productName: manufacturingData.name || manufacturingData.step1?.productName || '제품명',
         season: manufacturingData.season || '',
-        target: manufacturingData.target_customer || '',
+  target: manufacturingData.target_customer || manufacturingData.step1?.targetCustomer || '',
         concept: manufacturingData.concept || '',
         detail: manufacturingData.detail || '',
-        quantity: manufacturingData.quantity || 0,
-        size: (manufacturingData.size || 'M').toUpperCase(),
+  quantity: manufacturingData.quantity || manufacturingData.step5?.totalQuantity || 0,
+  size: (manufacturingData.size || manufacturingData.step5?.sampleSize || 'M').toUpperCase(),
         garmentType: 'tshirt',
         fabric: manufacturingData.step4?.fabricCode || '',
         material: manufacturingData.step4?.accessoryCode || '',
-        dueDate: manufacturingData.due_date || new Date().toLocaleDateString('ko-KR'),
-        memo: manufacturingData.memo || '',
+  dueDate: manufacturingData.due_date || manufacturingData.step5?.deliveryDate || new Date().toLocaleDateString('ko-KR'),
+  memo: manufacturingData.memo || manufacturingData.step6?.finalNotes || '',
         compositeImageUrl: manufacturingData.compositeImageUrl || '',
         contact: manufacturingData.designerContact || '010-0000-0000'
       }
@@ -83,11 +119,11 @@ export default function ManufacturingSuccess() {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-blue-600 mb-1">주문 번호</p>
-                <p className="text-2xl font-bold text-blue-900">MFG-{Date.now().toString().slice(-8)}</p>
+                <p className="text-2xl font-bold text-blue-900">{displayOrderNo}</p>
                 <p className="text-sm text-blue-600 mt-2">이 번호로 주문 상태를 확인하실 수 있습니다.</p>
                 <div className="mt-4 p-3 bg-white rounded-lg">
                   <p className="text-xs text-gray-600">주문 완료 시간</p>
-                  <p className="text-sm font-medium">{new Date().toLocaleString("ko-KR")}</p>
+                  <p className="text-sm font-medium">{displayOrderedAt}</p>
                 </div>
               </div>
             </CardContent>
@@ -103,19 +139,19 @@ export default function ManufacturingSuccess() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">제품명:</span>
-                  <p className="font-medium">여성용 캐주얼 블라우스</p>
+                  <p className="font-medium">{detailProductName || '-'}</p>
                 </div>
                 <div>
                   <span className="text-gray-600">주문 수량:</span>
-                  <p className="font-medium">500개</p>
+                  <p className="font-medium">{detailQuantity ? `${detailQuantity}개` : '-'}</p>
                 </div>
                 <div>
                   <span className="text-gray-600">예상 납기:</span>
-                  <p className="font-medium">2024년 2월 15일</p>
+                  <p className="font-medium">{detailDueDate || '-'}</p>
                 </div>
                 <div>
                   <span className="text-gray-600">결제 금액:</span>
-                  <p className="font-medium text-blue-600">8,250,000원</p>
+                  <p className="font-medium text-blue-600">{detailFinalPrice || '-'}</p>
                 </div>
               </div>
             </CardContent>
