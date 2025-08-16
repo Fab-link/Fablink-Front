@@ -149,8 +149,8 @@ export default function FactoryQuotesPage() {
         {/* Orders List */}
         {!loading && Array.isArray(orders) && orders.length > 0 && (
           <div className="space-y-6">
-            {orders.map((order) => (
-              <Card key={order.id} className="hover:shadow-lg transition-shadow">
+            {orders.map((order, index) => (
+              <Card key={order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
