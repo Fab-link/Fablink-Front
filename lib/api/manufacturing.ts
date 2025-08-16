@@ -87,11 +87,19 @@ export const manufacturingApi = {
   },
 
   /**
-   * 주문 목록 조회
+   * 주문 목록 조회 (공장주용)
    * @returns 주문 목록
    */
   getOrders: async () => {
-    return apiClient.get<OrderData[]>('/manufacturing/orders/');
+    return apiClient.get<OrderData[]>('/manufacturing/factory-orders/');
+  },
+
+  /**
+   * 디자이너 주문 목록 조회
+   * @returns 디자이너 주문 목록
+   */
+  getDesignerOrders: async () => {
+    return apiClient.get<OrderData[]>('/manufacturing/designer-orders/');
   },
 
   /**

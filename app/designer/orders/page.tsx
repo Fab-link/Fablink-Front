@@ -344,7 +344,7 @@ export default function DesignerOrdersPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await manufacturingApi.getOrders()
+        const response = await manufacturingApi.getDesignerOrders()
         const ordersData = response.results || response
         const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
           order.product?.designer === user?.id || order.productInfo?.designer === user?.id
@@ -423,7 +423,7 @@ export default function DesignerOrdersPage() {
     try {
       await manufacturingApi.selectBid(bidId)
       
-      const response = await manufacturingApi.getOrders()
+      const response = await manufacturingApi.getDesignerOrders()
       const ordersData = response.results || response
       const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
         order.productInfo?.designer === user?.id

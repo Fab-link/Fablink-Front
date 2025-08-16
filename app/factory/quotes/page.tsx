@@ -177,18 +177,15 @@ export default function FactoryQuotesPage() {
                         <h4 className="font-medium text-gray-900 mb-2">주문 정보</h4>
                         <div className="space-y-1 text-sm text-gray-600">
                           <p>수량: {order.quantity}개</p>
-                          <p>단가: {order.unitPrice?.toLocaleString()}원</p>
-                          <p>총액: {order.totalPrice?.toLocaleString()}원</p>
-                          <p>배송비: {order.shippingCost?.toLocaleString() || 0}원</p>
+                          <p>입찰 단가: {order.unitPrice !== undefined && order.unitPrice > 0 ? `${order.unitPrice.toLocaleString()}원` : '미입찰'}</p>
                         </div>
                       </div>
                       <div>
                         <h4 className="font-medium text-gray-900 mb-2">고객 정보</h4>
                         <div className="space-y-1 text-sm text-gray-600">
-                          <p>이름: {order.customerName}</p>
-                          <p>연락처: {order.customerContact}</p>
-                          <p>배송지: {order.shippingAddress}</p>
-                          <p>결제방법: {order.shippingMethod}</p>
+                          <p>이름: {order.customerName || '정보 없음'}</p>
+                          <p>연락처: {order.customerContact || '정보 없음'}</p>
+                          <p>배송지: {order.shippingAddress || '정보 없음'}</p>
                         </div>
                       </div>
                     </div>
