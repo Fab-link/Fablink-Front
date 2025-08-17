@@ -8,12 +8,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Calculator, Clock, CheckCircle, XCircle, Eye, Package, Calendar, User, Edit, FileText, Download } from "lucide-react"
+import { ArrowLeft, Calculator, Clock, CheckCircle, XCircle, Eye, Package, Calendar, User, Edit, FileText, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import Link from "next/link"
 import { manufacturingApi } from "@/lib/api/manufacturing"
 
 export default function FactoryQuotesPage() {
   const [orders, setOrders] = useState<any[]>([])
+  const [sortedOrders, setSortedOrders] = useState<any[]>([])
+  const [sortType, setSortType] = useState<'default' | 'quantity' | 'dueDate'>('default')
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -32,10 +34,13 @@ export default function FactoryQuotesPage() {
         console.log('API 응답:', response) // 디버깅용
         // Django REST framework pagination 응답 처리
         const ordersData = response.results || response
-        setOrders(Array.isArray(ordersData) ? ordersData : [])
+        const ordersList = Array.isArray(ordersData) ? ordersData : []
+        setOrders(ordersList)
+        setSortedOrders(ordersList)
       } catch (error) {
         console.error('주문 데이터 로딩 실패:', error)
         setOrders([]) // 에러 시 빈 배열로 설정
+        setSortedOrders([])
       } finally {
         setLoading(false)
       }
@@ -102,7 +107,9 @@ export default function FactoryQuotesPage() {
       // 주문 목록 새로고침
       const response = await manufacturingApi.getOrders()
       const ordersData = response.results || response
-      setOrders(Array.isArray(ordersData) ? ordersData : [])
+      const ordersList = Array.isArray(ordersData) ? ordersData : []
+      setOrders(ordersList)
+      applySorting(ordersList, sortType)
       
       alert('입찰이 성공적으로 제출되었습니다.')
       setShowQuoteModal(false)
@@ -116,6 +123,41 @@ export default function FactoryQuotesPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const applySorting = (ordersList: any[], type: 'default' | 'quantity' | 'dueDate') => {
+    let sorted = [...ordersList]
+    
+    switch (type) {
+      case 'quantity':
+        sorted.sort((a, b) => (b.quantity || 0) - (a.quantity || 0)) // 내림차순
+        break
+      case 'dueDate':
+        sorted.sort((a, b) => {
+          const dateA = a.productInfo?.dueDate ? new Date(a.productInfo.dueDate).getTime() : 0
+          const dateB = b.productInfo?.dueDate ? new Date(b.productInfo.dueDate).getTime() : 0
+          return dateB - dateA // 내림차순
+        })
+        break
+      default:
+        // 기본 정렬 (생성일 기준)
+        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        break
+    }
+    
+    setSortedOrders(sorted)
+  }
+
+  const handleSort = (type: 'default' | 'quantity' | 'dueDate') => {
+    setSortType(type)
+    applySorting(orders, type)
+  }
+
+  const getSortIcon = (type: 'default' | 'quantity' | 'dueDate') => {
+    if (sortType === type) {
+      return <ArrowDown className="h-4 w-4" />
+    }
+    return <ArrowUpDown className="h-4 w-4" />
   }
 
   return (
@@ -138,6 +180,42 @@ export default function FactoryQuotesPage() {
           <p className="text-gray-600 mt-2">디자이너가 요청한 견적을 확인하고 응답하세요</p>
         </div>
 
+        {/* 정렬 버튼 */}
+        {!loading && Array.isArray(orders) && orders.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">정렬:</span>
+              <Button
+                variant={sortType === 'default' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleSort('default')}
+                className="flex items-center space-x-1"
+              >
+                {getSortIcon('default')}
+                <span>기본</span>
+              </Button>
+              <Button
+                variant={sortType === 'quantity' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleSort('quantity')}
+                className="flex items-center space-x-1"
+              >
+                {getSortIcon('quantity')}
+                <span>수량별</span>
+              </Button>
+              <Button
+                variant={sortType === 'dueDate' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleSort('dueDate')}
+                className="flex items-center space-x-1"
+              >
+                {getSortIcon('dueDate')}
+                <span>납기일별</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Loading */}
         {loading && (
           <div className="text-center py-8">
@@ -147,9 +225,9 @@ export default function FactoryQuotesPage() {
         )}
 
         {/* Orders List */}
-        {!loading && Array.isArray(orders) && orders.length > 0 && (
+        {!loading && Array.isArray(sortedOrders) && sortedOrders.length > 0 && (
           <div className="space-y-6">
-            {orders.map((order, index) => (
+            {sortedOrders.map((order, index) => (
               <Card key={order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -262,7 +340,7 @@ export default function FactoryQuotesPage() {
           </div>
         )}
 
-        {!loading && (!Array.isArray(orders) || orders.length === 0) && (
+        {!loading && (!Array.isArray(sortedOrders) || sortedOrders.length === 0) && (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8 text-gray-500">

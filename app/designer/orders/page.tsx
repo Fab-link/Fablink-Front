@@ -29,125 +29,175 @@ import { useRouter } from "next/navigation"
 import { manufacturingApi, FactoryBidData } from "@/lib/api/manufacturing"
 import { useAuthContext } from "@/contexts/AuthContext"
 
-// 입찰 업체 표시 컴포넌트
-function BidsDisplay({ order, onSelectBid }: { order: any, onSelectBid: (bidId: number) => void }) {
-  const [bids, setBids] = useState<FactoryBidData[]>([])
+
+
+// 샘플 제작 업체 목록 컴포넌트
+function SampleFactoriesList({ order }: { order: any }) {
+  const [factories, setFactories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchBids = async () => {
+    const fetchFactories = async () => {
       if (!order) return
       
+      console.log('Fetching factories for order:', order)
+      
       try {
-        const response = await manufacturingApi.getBidsByOrder(order.id)
-        setBids(response || [])
+        const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
+        console.log('API Response:', response)
+        const bidsData = response || []
+        
+        // 입찰 데이터를 공장 정보로 변환
+        const factoriesData = bidsData.map((bid: any) => {
+          const factoryInfo = bid.factory_info || bid.factoryInfo || {}
+          return {
+            id: bid.id,
+            orderId: order.order_id || order.id,
+            name: factoryInfo.name || '공장명 없음',
+            contact: factoryInfo.contact || '연락처 없음',
+            address: factoryInfo.address || '주소 없음',
+            profile_image: factoryInfo.profile_image,
+            estimatedTime: `${bid.estimated_delivery_days || bid.estimatedDeliveryDays || 0}일`,
+            price: bid.unit_price || bid.unitPrice || 0,
+            totalPrice: bid.total_price || bid.totalPrice || 0,
+            dueDate: bid.expect_work_day || bid.expectWorkDay || '미정',
+            status: bid.status || 'pending',
+            bidId: bid.id
+          }
+        })
+        
+        console.log('Processed factories data:', factoriesData)
+        setFactories(factoriesData)
       } catch (error) {
-        console.error('입찰 목록 로딩 실패:', error)
-        setBids([])
+        console.error('공장 목록 로딩 실패:', error)
+        setFactories([])
       } finally {
         setLoading(false)
       }
     }
 
-    fetchBids()
+    fetchFactories()
   }, [order])
+
+  const handleSelectFactory = async (bidId: number) => {
+    try {
+      await manufacturingApi.selectBid(bidId)
+      alert('업체를 선정했습니다.')
+      // 목록 새로고침
+      const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
+      const bidsData = response || []
+      const factoriesData = bidsData.map((bid: any) => {
+        const factoryInfo = bid.factory_info || bid.factoryInfo || {}
+        return {
+          id: bid.id,
+          orderId: order.order_id,
+          name: factoryInfo.name || '공장명 없음',
+          contact: factoryInfo.contact || '연락처 없음',
+          address: factoryInfo.address || '주소 없음',
+          profile_image: factoryInfo.profile_image,
+          estimatedTime: `${bid.estimated_delivery_days || bid.estimatedDeliveryDays || 0}일`,
+          price: bid.unit_price || bid.unitPrice || 0,
+          totalPrice: bid.total_price || bid.totalPrice || 0,
+          dueDate: bid.expect_work_day || bid.expectWorkDay || '미정',
+          status: bid.status || 'pending',
+          bidId: bid.id
+        }
+      })
+      setFactories(factoriesData)
+    } catch (error) {
+      console.error('업체 선정 실패:', error)
+      alert('업체 선정 중 오류가 발생했습니다.')
+    }
+  }
 
   if (loading) {
     return (
       <div className="text-center py-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-        <p className="text-sm text-gray-600">입찰 정보를 불러오는 중...</p>
+        <p className="text-sm text-gray-600">업체 정보를 불러오는 중...</p>
       </div>
     )
   }
 
-  if (bids.length === 0) {
+  console.log('Factories state:', factories)
+  
+  if (factories.length === 0) {
     return (
-      <div className="text-center py-6 text-gray-500">
-        <Factory className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-        <p className="text-sm">현재 입찰 가능한 업체가 없습니다.</p>
+      <div className="text-center py-8 text-gray-500">
+        <Factory className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <p>현재 입찰 가능한 업체가 없습니다.</p>
+        <p className="text-sm">업체가 작업지시서를 확인 후 입찰하면 목록에 표시됩니다.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      {bids.map((bid) => (
-        <Card key={bid.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <Factory className="h-4 w-4 text-gray-600" />
-                </div>
-                <div>
-                  <h5 className="font-medium text-sm">{bid.factory_info?.name || '공장명 없음'}</h5>
-                  <div className="text-xs text-gray-600 space-y-0.5">
-                    <div className="flex items-center space-x-1">
-                      <Phone className="h-2.5 w-2.5" />
-                      <span>{bid.factory_info?.phone || '연락처 없음'}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-2.5 w-2.5" />
-                      <span>{bid.estimated_delivery_days}일</span>
-                    </div>
-                  </div>
-                </div>
+    <div className="space-y-4">
+      {factories.map((factory) => (
+        <div
+          key={factory.id}
+          className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50"
+        >
+          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+            {factory.profile_image ? (
+              <img 
+                src={factory.profile_image} 
+                alt={factory.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                }}
+              />
+            ) : null}
+            <Factory className={`h-8 w-8 text-gray-600 ${factory.profile_image ? 'hidden' : ''}`} />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-medium">{factory.name}</h4>
+            <div className="text-sm text-gray-600 space-y-1">
+              <div className="flex items-center space-x-2">
+                <Phone className="h-3 w-3" />
+                <span>{factory.contact}</span>
               </div>
-              <div className="text-right">
-                <div className="flex items-center space-x-1 font-medium mb-1">
-                  <Won className="h-3 w-3" />
-                  <span className="text-sm">{bid.unit_price?.toLocaleString() || '0'}원</span>
-                </div>
-                <div className="text-xs text-gray-500 mb-2">
-                  총액: {bid.total_price?.toLocaleString() || '0'}원
-                </div>
-                {bid.status === 'pending' && (
-                  <Button size="sm" className="text-xs px-2 py-1" onClick={() => onSelectBid(bid.id!)}>
-                    업체 선정
-                  </Button>
-                )}
-                {bid.status === 'selected' && (
-                  <Badge className="bg-green-600 text-xs">선정됨</Badge>
-                )}
-                {bid.status === 'rejected' && (
-                  <Badge variant="outline" className="text-xs">거절됨</Badge>
-                )}
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-3 w-3" />
+                <span>{factory.address}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-3 w-3" />
+                <span>납기일: {factory.dueDate}</span>
               </div>
             </div>
-            {bid.notes && (
-              <div className="mt-2 pt-2 border-t">
-                <p className="text-xs text-gray-600">{bid.notes}</p>
-              </div>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
+              <Clock className="h-3 w-3" />
+              <span>{factory.estimatedTime}</span>
+            </div>
+            <div className="flex items-center space-x-2 font-medium mb-2">
+              <Won className="h-4 w-4" />
+              <span>{factory.price.toLocaleString()}원</span>
+            </div>
+            <div className="text-xs text-gray-500 mb-2">
+              총액: {factory.totalPrice.toLocaleString()}원
+            </div>
+            {factory.status === 'pending' && (
+              <Button size="sm" onClick={() => handleSelectFactory(factory.bidId)}>
+                업체 선정
+              </Button>
             )}
-          </CardContent>
-        </Card>
+            {factory.status === 'selected' && (
+              <Badge className="bg-green-600">선정됨</Badge>
+            )}
+            {factory.status === 'rejected' && (
+              <Badge variant="outline">거절됨</Badge>
+            )}
+          </div>
+        </div>
       ))}
     </div>
   )
 }
-
-// 샘플 업체 데이터 (추후 백엔드 구현 예정)
-const sampleFactories = [
-  {
-    id: 1,
-    name: "프리미엄 샘플 공방",
-    contact: "02-1234-5678",
-    address: "서울시 강남구 테헤란로 123",
-    estimatedTime: "3-5일",
-    price: 150000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 2,
-    name: "스피드 샘플 제작소",
-    contact: "02-8765-4321",
-    address: "서울시 마포구 홍대로 456",
-    estimatedTime: "2-3일",
-    price: 180000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-]
 
 // 단계별 상세 정보 렌더링 함수
 const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: string) => string) => {
@@ -157,55 +207,12 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
         <Card className="mt-4">
           <CardHeader>
             <CardTitle>샘플 제작 업체 목록</CardTitle>
-            <CardDescription>주문 코드: {order.order_id}</CardDescription>
           </CardHeader>
           <CardContent>
-            {sampleFactories.length > 0 ? (
-              <div className="space-y-4">
-                {sampleFactories.map((factory) => (
-                  <div
-                    key={factory.id}
-                    className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <img
-                      src={factory.image || "/placeholder.svg"}
-                      alt={factory.name}
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                    <div className="flex-1">
-                      <h4 className="font-medium">{factory.name}</h4>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <Phone className="h-3 w-3" />
-                          <span>{factory.contact}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-3 w-3" />
-                          <span>{factory.address}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600 mb-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{factory.estimatedTime}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 font-medium">
-                        <Won className="h-4 w-4" />
-                        <span>{factory.price.toLocaleString()}원</span>
-                      </div>
-                    </div>
-                    <Button size="sm">업체 선정</Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Factory className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>현재 입찰 가능한 업체가 없습니다.</p>
-                <p className="text-sm">업체가 작업지시서를 확인 후 입찰하면 목록에 표시됩니다.</p>
-              </div>
-            )}
+            <div className="mb-4 text-sm text-gray-600">
+              주문 코드: #{order.order_id || order.id}
+            </div>
+            <SampleFactoriesList order={order} />
           </CardContent>
         </Card>
       )
@@ -419,23 +426,7 @@ export default function DesignerOrdersPage() {
     }
   }
 
-  const handleSelectBid = async (bidId: number) => {
-    try {
-      await manufacturingApi.selectBid(bidId)
-      
-      const response = await manufacturingApi.getDesignerOrders()
-      const ordersData = response.results || response
-      const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
-        order.productInfo?.designer === user?.id
-      ) : []
-      setOrders(userOrders)
-      
-      alert('업체를 선정했습니다.')
-    } catch (error) {
-      console.error('업체 선정 실패:', error)
-      alert('업체 선정 중 오류가 발생했습니다.')
-    }
-  }
+
 
   if (!user) {
     return (
@@ -471,7 +462,7 @@ export default function DesignerOrdersPage() {
               <h1 className="text-2xl font-bold text-gray-900">주문 내역 조회</h1>
             </div>
             <span className="text-sm text-gray-600">
-              디자이너: {user?.user_id || 'Unknown'}
+              디자이너: {user?.name || user?.user_id || 'Unknown'}
             </span>
           </div>
         </div>
@@ -517,7 +508,7 @@ export default function DesignerOrdersPage() {
                           </div>
                           <p className="text-xs text-gray-600 mb-2">{order.order_id}</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</span>
+                            <span className="text-xs text-gray-500">{order.created_at || order.createdAt ? new Date(order.created_at || order.createdAt).toLocaleDateString() : '날짜 정보 없음'}</span>
                             <Progress value={(order.currentStep / 7) * 100} className="w-16 h-2" />
                           </div>
                         </div>
@@ -551,7 +542,7 @@ export default function DesignerOrdersPage() {
                         </div>
                         <div>
                           <span className="text-gray-600">주문일:</span>
-                          <p className="font-medium">{new Date(selectedOrder.created_at).toLocaleDateString()}</p>
+                          <p className="font-medium">{selectedOrder.created_at || selectedOrder.createdAt ? new Date(selectedOrder.created_at || selectedOrder.createdAt).toLocaleDateString() : '날짜 정보 없음'}</p>
                         </div>
                         <div>
                           <span className="text-gray-600">진행률:</span>
