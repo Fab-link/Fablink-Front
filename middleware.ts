@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// 배포(S3 정적 호스팅)에서는 미들웨어가 작동하지 않으므로 비활성화할 수 있게 제어
+const ENABLE_MIDDLEWARE = process.env.NEXT_PUBLIC_ENABLE_MIDDLEWARE === 'true';
+
 // 인증이 필요한 경로 목록
 const protectedPaths = [
   '/dashboard',
@@ -20,6 +23,9 @@ const publicPaths = [
 ];
 
 export function middleware(request: NextRequest) {
+  if (!ENABLE_MIDDLEWARE) {
+    return NextResponse.next();
+  }
   const { pathname } = request.nextUrl;
   
   // 정적 파일 요청은 무시
@@ -52,12 +58,14 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: [
-    /*
-     * 미들웨어가 실행될 경로 패턴 매처
-     * '/((?!api|_next/static|_next/image|favicon.ico).*)'
-     */
-    '/(.*)',
-  ],
-};
+export const config = ENABLE_MIDDLEWARE
+  ? {
+      matcher: [
+        /*
+         * 미들웨어가 실행될 경로 패턴 매처
+         * '/((?!api|_next/static|_next/image|favicon.ico).*)'
+         */
+        '/(.*)',
+      ],
+    }
+  : { matcher: [] };

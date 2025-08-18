@@ -9,7 +9,8 @@
     "dev": "npx next dev",
     "preprod": "node scripts/setup-env.js prod",
     "prod": "npx next build && npx next start",
-    "build": "npx next build",
+  "build": "npx next build",
+  "export": "npx next build && npx next export",
     "lint": "npx next lint",
     "start": "npx next start"
   },
