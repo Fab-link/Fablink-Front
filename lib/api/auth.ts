@@ -22,20 +22,50 @@ export const authApi = {
   login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     debugLog('로그인 시도:', { user_id: credentials.user_id, user_type: credentials.user_type });
     try {
-      const response = await apiClient.post<AuthResponse>('/accounts/login/', credentials);
+      // 사용자 타입에 따라 다른 엔드포인트 사용
+      const endpoint = credentials.user_type === 'factory' 
+        ? '/accounts/factory/login/' 
+        : '/accounts/designer/login/';
+      
+      const response = await apiClient.post<AuthResponse>(endpoint, {
+        user_id: credentials.user_id,
+        password: credentials.password
+      });
       
       // 로그인 성공 시 토큰 저장
       if (response.success && response.tokens) {
+        debugLog('백엔드 응답 전체:', response);
+        
+        // 사용자 데이터 추출 (camelCase 변환된 필드명 사용)
+        const userData = response.userType === 'designer' ? response.designer : response.factory;
+        
+        debugLog('추출된 사용자 데이터:', { userType: response.userType, userData });
+        
+        if (!userData) {
+          debugLog('사용자 데이터 없음:', { response });
+          throw new Error('사용자 데이터를 찾을 수 없습니다.');
+        }
+        
+        const userInfo = {
+          id: userData.id,
+          userId: userData.userId,
+          name: userData.name,
+          userType: response.userType,
+          contact: userData.contact || '',
+          address: userData.address || ''
+        };
+        
         // localStorage에 저장
         localStorage.setItem('authTokens', JSON.stringify(response.tokens));
-        localStorage.setItem('userData', JSON.stringify(response.user));
+        localStorage.setItem('userData', JSON.stringify(userInfo));
         
         // 쿠키에도 저장 (미들웨어에서 사용)
         setCookie('authToken', response.tokens.access, 7); // 7일 유효
         
         debugLog('토큰 저장 완료:', { 
           access: response.tokens.access.substring(0, 20) + '...', 
-          refresh: response.tokens.refresh.substring(0, 20) + '...' 
+          refresh: response.tokens.refresh.substring(0, 20) + '...',
+          userInfo
         });
       }
       

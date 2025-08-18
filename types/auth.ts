@@ -29,8 +29,11 @@ export interface LoginRequest {
 export interface AuthResponse {
   success: boolean;
   message: string;
+  user_type: 'designer' | 'factory';
   tokens: Tokens;
-  user: User;
+  user?: User;
+  designer?: any;
+  factory?: any;
 }
 
 // 로그아웃 요청 타입

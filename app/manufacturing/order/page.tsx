@@ -15,11 +15,13 @@ import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { useAuthContext } from "@/contexts/AuthContext"
-import { manufacturingApi, OrderData } from "@/lib/api/manufacturing"
+import { useManufacturingContext } from "@/contexts/ManufacturingContext"
+import { manufacturingApi } from "@/lib/api/manufacturing"
 
 export default function ManufacturingStep8() {
   const router = useRouter()
   const { user } = useAuthContext()
+  const { designFiles } = useManufacturingContext()
   const [orderData, setOrderData] = useState<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -77,7 +79,7 @@ export default function ManufacturingStep8() {
       return
     }
 
-    setIsSubmitting(true)
+  setIsSubmitting(true)
 
     try {
       const finalOrderData = {
@@ -91,34 +93,45 @@ export default function ManufacturingStep8() {
       }
       localStorage.setItem("manufacturingData", JSON.stringify(finalOrderData))
 
-      router.push("/manufacturing/success")
-
-      const orderPayload: OrderData = {
-        product: orderData.productId || 1,
-        quantity: pricing.quantity,
-        unit_price: pricing.basePrice,
-        customer_name: formData.customerName,
-        customer_contact: formData.customerPhone,
-        shipping_address: formData.address,
-        shipping_method: formData.paymentMethod,
-        shipping_cost: pricing.shippingFee,
-        notes: `결제방법: ${formData.paymentMethod}, 회사명: ${formData.companyName || '없음'}, 사업자번호: ${formData.businessNumber || '없음'}`
+      // 단일 제출 API 호출(FormData 구성)
+      const data = finalOrderData
+      const fd = new FormData()
+      fd.append('name', data.name || data.step1?.productName || '')
+      fd.append('season', data.season || data.step1?.season || '')
+  const targetCode = data.target_customer_code || data.step1?.targetCustomerCode || data.target_customer
+  fd.append('target', targetCode || '')
+      fd.append('concept', data.concept || data.step1?.concept || '')
+      if (data.detail) fd.append('detail', data.detail)
+      if (data.size || data.step5?.sampleSize) fd.append('size', (data.size || data.step5?.sampleSize))
+      const qty = (data.quantity || data.step5?.totalQuantity)
+      if (qty) fd.append('quantity', String(qty))
+      if (data.step4?.fabricCode) fd.append('fabric_code', data.step4.fabricCode)
+      if (data.step4?.accessoryCode) fd.append('material_code', data.step4.accessoryCode)
+      if (data.due_date) fd.append('due_date', data.due_date)
+      if (data.memo || data.step6?.finalNotes) fd.append('memo', data.memo || data.step6.finalNotes)
+      // 파일: 첫 번째 디자인 파일만 image_path로 업로드
+      if (designFiles && designFiles.length > 0) {
+        fd.append('image_path', designFiles[0])
       }
 
-      manufacturingApi.createOrder(orderPayload)
-        .then(response => {
-          const updatedData = {
-            ...finalOrderData,
-            step8: {
-              ...finalOrderData.step8,
-              orderId: response.id
-            }
-          }
-          localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
-        })
-        .catch(error => {
-          console.error('백그라운드 API 오류:', error)
-        })
+      try {
+        const resp: any = await manufacturingApi.submitManufacturing(fd)
+        const serverOrderId = resp.order_id ?? resp.orderId
+        const withIds = {
+          ...finalOrderData,
+          productId: resp.product_id || finalOrderData.productId,
+          // 양쪽 표기 모두 저장해 성공 페이지/기타 화면 호환
+          orderId: serverOrderId || finalOrderData.step8?.orderId,
+          order_id: serverOrderId || finalOrderData.step8?.orderId,
+          requestOrderId: resp.request_order_id,
+        }
+        localStorage.setItem('manufacturingData', JSON.stringify(withIds))
+        router.push("/manufacturing/success")
+      } catch (err) {
+        console.error('제출 API 오류:', err)
+        alert('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        return
+      }
 
     } catch (error) {
       console.error('주문 처리 오류:', error)
@@ -126,7 +139,7 @@ export default function ManufacturingStep8() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [formData, pricing, orderData, router])
+  }, [formData, pricing, orderData, router, designFiles])
 
   const handleBack = useCallback(() => {
     router.push("/manufacturing/work-order")

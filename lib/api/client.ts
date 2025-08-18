@@ -70,6 +70,7 @@ class ApiClient {
                         errorMessage = errorText || errorMessage
                     } catch {
                         // response body를 읽을 수 없는 경우 기본 메시지 사용
+                        errorMessage = 'response body를 읽을 수 없습니다.'
                     }
                 }
                 throw new Error(errorMessage)
@@ -140,16 +141,10 @@ class ApiClient {
         if (!response.ok) {
             let errorMessage = `File upload failed! status: ${response.status}`
             try {
-                const responseClone = response.clone()
-                const errorData = await responseClone.json()
+                const errorData = await response.json()
                 errorMessage = errorData.message || errorData.detail || errorMessage
             } catch {
-                try {
-                    const errorText = await response.text()
-                    errorMessage = errorText || errorMessage
-                } catch {
-                    // response body를 읽을 수 없는 경우
-                }
+                // JSON 파싱 실패 시 기본 메시지 사용
             }
             throw new Error(errorMessage)
         }

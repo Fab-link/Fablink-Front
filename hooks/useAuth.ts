@@ -113,14 +113,35 @@ export function useAuth() {
       const response = await authApi.login(loginData);
       
       if (response.success) {
+        debugLog('백엔드 응답 전체:', response);
+        
+        // 사용자 데이터 추출 (camelCase 변환된 필드명 사용)
+        const userData = response.userType === 'designer' ? response.designer : response.factory;
+        
+        debugLog('추출된 사용자 데이터:', { userType: response.userType, userData });
+        
+        if (!userData) {
+          debugLog('사용자 데이터 없음:', { response });
+          throw new Error('사용자 데이터를 찾을 수 없습니다.');
+        }
+        
+        const userInfo = {
+          id: userData.id,
+          userId: userData.userId,
+          name: userData.name,
+          userType: response.userType,
+          contact: userData.contact || '',
+          address: userData.address || ''
+        };
+        
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('authToken', response.tokens.access);
           sessionStorage.setItem('refreshToken', response.tokens.refresh);
-          sessionStorage.setItem('userData', JSON.stringify(response.user));
+          sessionStorage.setItem('userData', JSON.stringify(userInfo));
         }
 
         setAuthState({
-          user: response.user,
+          user: userInfo,
           tokens: response.tokens,
           isAuthenticated: true,
           isLoading: false,
