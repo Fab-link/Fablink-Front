@@ -47,17 +47,15 @@ jobs:
       - name: Prepare env (development)
         run: node scripts/setup-env.js dev
 
-      - name: Build & Export static site
-        run: pnpm export
-
       - name: Disable middleware for static export (safety)
         run: |
           if [ -f middleware.ts ]; then
             echo "Temporarily disabling middleware for export"
             mv middleware.ts middleware.disabled.ts
           fi
-          # Re-run export if middleware existed and caused issues
-          pnpm export
+
+      - name: Build static site (Next 15)
+        run: pnpm build
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -69,7 +67,16 @@ jobs:
 
       - name: Sync to S3 (staging)
         run: |
-          aws s3 sync ./out s3://$S3_BUCKET --delete
+          # Next 15 with output: 'export' writes to .next/static and .next/app with an export dir at .next/standalone or .next/export
+          # Prefer .next/export if exists; else fall back to out/
+          exportDir=".next/export"
+          if [ -d "$exportDir" ]; then
+            aws s3 sync "$exportDir" s3://$S3_BUCKET --delete
+          elif [ -d "out" ]; then
+            aws s3 sync ./out s3://$S3_BUCKET --delete
+          else
+            echo "Export directory not found" && exit 1
+          fi
 
       - name: Invalidate CloudFront cache (staging)
         if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
