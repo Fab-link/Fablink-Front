@@ -51,7 +51,12 @@ try {
             
             // AWS 설정 (로컬 개발용)
             .replace(/AWS_REGION=.*/g, 'AWS_REGION=ap-northeast-2')
-            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-local-uploads');
+            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-local-uploads')
+            // 클라이언트에서 참조할 퍼블릭 변수
+            .replace(/NEXT_PUBLIC_AWS_REGION=.*/g, 'NEXT_PUBLIC_AWS_REGION=ap-northeast-2')
+            .replace(/NEXT_PUBLIC_AWS_S3_BUCKET=.*/g, 'NEXT_PUBLIC_AWS_S3_BUCKET=fablink-local-uploads')
+            // 로컬에서는 미들웨어 활성화 허용
+            .replace(/NEXT_PUBLIC_ENABLE_MIDDLEWARE=.*/g, 'NEXT_PUBLIC_ENABLE_MIDDLEWARE=true');
             
     } else if (envType === 'dev') {
         envContent = envContent
@@ -77,7 +82,11 @@ try {
             
             // AWS 설정 (개발 환경용)
             .replace(/AWS_REGION=.*/g, 'AWS_REGION=ap-northeast-2')
-            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-dev-uploads');
+            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-dev-uploads')
+            .replace(/NEXT_PUBLIC_AWS_REGION=.*/g, 'NEXT_PUBLIC_AWS_REGION=ap-northeast-2')
+            .replace(/NEXT_PUBLIC_AWS_S3_BUCKET=.*/g, 'NEXT_PUBLIC_AWS_S3_BUCKET=fablink-dev-uploads')
+            // 정적 호스팅 대비 미들웨어 비활성화
+            .replace(/NEXT_PUBLIC_ENABLE_MIDDLEWARE=.*/g, 'NEXT_PUBLIC_ENABLE_MIDDLEWARE=false');
             
     } else if (envType === 'prod') {
         envContent = envContent
@@ -103,7 +112,11 @@ try {
             
             // AWS 설정 (프로덕션 환경용)
             .replace(/AWS_REGION=.*/g, 'AWS_REGION=ap-northeast-2')
-            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-prod-uploads');
+            .replace(/AWS_S3_BUCKET=.*/g, 'AWS_S3_BUCKET=fablink-prod-uploads')
+            .replace(/NEXT_PUBLIC_AWS_REGION=.*/g, 'NEXT_PUBLIC_AWS_REGION=ap-northeast-2')
+            .replace(/NEXT_PUBLIC_AWS_S3_BUCKET=.*/g, 'NEXT_PUBLIC_AWS_S3_BUCKET=fablink-prod-uploads')
+            // 정적 호스팅 대비 미들웨어 비활성화
+            .replace(/NEXT_PUBLIC_ENABLE_MIDDLEWARE=.*/g, 'NEXT_PUBLIC_ENABLE_MIDDLEWARE=false');
     }
 
     // 환경별 파일 생성/업데이트
