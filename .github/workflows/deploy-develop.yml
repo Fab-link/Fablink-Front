@@ -1,14 +1,17 @@
 name: Deploy Frontend to S3 (develop)
 
+# - develop 브랜치로의 push 시 자동 배포
+# - develop 브랜치로의 PR 생성/업데이트 시 워크플로는 실행되지만, 배포 잡은 스킵
 on:
+  push:
+    branches: [ develop ]
   pull_request:
-    types: [closed]
-    branches: [develop]
-  workflow_dispatch:
+    branches: [ develop ]
 
 jobs:
   deploy:
-    if: github.event.pull_request.merged == true
+    # 배포는 develop 브랜치로의 push 이벤트일 때만 실행
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
 
     permissions:
@@ -67,13 +70,14 @@ jobs:
 
       - name: Sync to S3 (staging)
         run: |
-          # Next 15 with output: 'export' writes to .next/static and .next/app with an export dir at .next/standalone or .next/export
-          # Prefer .next/export if exists; else fall back to out/
-          exportDir=".next/export"
+          # Prefer out/ for Next 'export', fallback to .next/export if used
+          exportDir="out"
+          if [ -d ".next/export" ]; then
+            exportDir=".next/export"
+          fi
+
           if [ -d "$exportDir" ]; then
             aws s3 sync "$exportDir" s3://$S3_BUCKET --delete
-          elif [ -d "out" ]; then
-            aws s3 sync ./out s3://$S3_BUCKET --delete
           else
             echo "Export directory not found" && exit 1
           fi
