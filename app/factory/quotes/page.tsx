@@ -234,6 +234,14 @@ export default function FactoryQuotesPage() {
                     <div>
                       <CardTitle className="flex items-center space-x-2">
                         <span>{order.productInfo?.name || '제품명 없음'}</span>
+                        {order.requestStatusLabel && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-purple-100 text-purple-800"
+                          >
+                            {order.requestStatusLabel}
+                          </Badge>
+                        )}
                         {getStatusBadge(order.status)}
                       </CardTitle>
                       <CardDescription>

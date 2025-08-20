@@ -71,10 +71,7 @@ export const manufacturingApi = {
    * @returns 업데이트된 제품 정보
    */
   updateProductJson: async (productId: number, productData: ProductData) => {
-    return apiClient.request<ProductData>(`/manufacturing/products/${productId}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(productData),
-    });
+  return apiClient.patch<ProductData>(`/manufacturing/products/${productId}/`, productData);
   },
 
   /**
@@ -87,11 +84,92 @@ export const manufacturingApi = {
   },
 
   /**
-   * 주문 목록 조회 (공장주용)
-   * @returns 주문 목록
+   * 주문 목록 조회 (공장주용, Django ORM 기반 기존)
    */
   getOrders: async () => {
     return apiClient.get<OrderData[]>('/manufacturing/factory-orders/');
+  },
+
+  /**
+   * factory_orders 목록 조회 (Mongo, 페이징)
+   */
+  getFactoryOrdersMongo: async (params?: { page?: number; page_size?: number; phase?: string; status?: string; debug?: boolean | string }) => {
+    const query: Record<string, string> = {}
+    if (params?.page) query.page = String(params.page)
+    if (params?.page_size) query.page_size = String(params.page_size)
+    if (params?.phase) query.phase = params.phase
+    if (params?.status) query.status = params.status
+    if (typeof params?.debug !== 'undefined') {
+      const v = String(params.debug).toLowerCase()
+      if (v === '1' || v === 'true' || v === 'yes') query.debug = '1'
+    }
+    const raw = await apiClient.get<any>('/manufacturing/factory-orders-mongo/', query)
+
+    // 일부 환경에서 camelCase로 응답되는 경우를 대비한 정규화
+    const hasCamelTop = typeof raw?.pageSize !== 'undefined' || typeof raw?.hasNext !== 'undefined'
+    const normalizeItem = (it: any) => {
+      if (!it || typeof it !== 'object') return it
+      const steps = Array.isArray(it.steps)
+        ? it.steps.map((s: any) => ({
+            index: s.index,
+            name: s.name,
+            status: s.status,
+            end_date: s.endDate ?? s.end_date ?? '',
+          }))
+        : it.steps
+      return {
+        order_id: it.order_id ?? it.orderId,
+        phase: it.phase,
+        factory_id: it.factory_id ?? it.factoryId,
+        overall_status: it.overall_status ?? it.overallStatus ?? '',
+        due_date: it.due_date ?? it.dueDate ?? null,
+        quantity: it.quantity,
+        unit_price: it.unit_price ?? it.unitPrice ?? null,
+        last_updated: it.last_updated ?? it.lastUpdated,
+        product_id: it.product_id ?? it.productId ?? null,
+        steps,
+        product_name: it.product_name ?? it.productName ?? '',
+        designer_id: it.designer_id ?? it.designerId ?? null,
+        designer_name: it.designer_name ?? it.designerName ?? '',
+      }
+    }
+
+    if (hasCamelTop) {
+      const debug_summary = raw.debug_summary ?? raw.debugSummary
+        ? {
+            ...(raw.debug_summary ?? {}),
+            ...(raw.debugSummary ?? {}),
+            items: Array.isArray(raw.debugSummary?.items)
+              ? raw.debugSummary.items.map((d: any) => ({
+                  order_id: d.order_id ?? d.orderId,
+                  factory_id: d.factory_id ?? d.factoryId,
+                  phase: d.phase,
+                  product_id: d.product_id ?? d.productId,
+                  product_name: d.product_name ?? d.productName,
+                  designer_id: d.designer_id ?? d.designerId,
+                  designer_name: d.designer_name ?? d.designerName,
+                  unit_price: d.unit_price ?? d.unitPrice,
+                  currency: d.currency,
+                  due_date: d.due_date ?? d.dueDate,
+                  quantity: d.quantity,
+                  overall_status: d.overall_status ?? d.overallStatus,
+                }))
+              : raw.debug_summary?.items,
+          }
+        : undefined
+
+      return {
+        count: raw.count,
+        page: raw.page,
+        page_size: raw.page_size ?? raw.pageSize,
+        has_next: raw.has_next ?? raw.hasNext,
+        results: Array.isArray(raw.results) ? raw.results.map(normalizeItem) : [],
+        ...(debug_summary ? { debug_summary } : {}),
+      }
+    }
+
+    // 이미 snake_case면 그대로 반환
+    return raw
   },
 
   /**
@@ -118,10 +196,7 @@ export const manufacturingApi = {
    * @returns 업데이트된 주문 정보
    */
   updateOrder: async (orderId: number, orderData: Partial<OrderData>) => {
-    return apiClient.request<OrderData>(`/manufacturing/orders/${orderId}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(orderData),
-    });
+  return apiClient.patch<OrderData>(`/manufacturing/orders/${orderId}/`, orderData);
   },
 
   /**
@@ -139,9 +214,7 @@ export const manufacturingApi = {
    * @returns 선정된 입찰 정보
    */
   selectBid: async (bidId: number) => {
-    return apiClient.request(`/manufacturing/bids/${bidId}/select/`, {
-      method: 'PATCH',
-    });
+  return apiClient.patch(`/manufacturing/bids/${bidId}/select/`);
   },
 
   /**
