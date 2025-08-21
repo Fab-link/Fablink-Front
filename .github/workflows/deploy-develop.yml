@@ -1,90 +1,158 @@
-name: Deploy Frontend to S3 (develop)
+name: Deploy Frontend
 
-# - develop 브랜치로의 push 시 자동 배포
-# - develop 브랜치로의 PR 생성/업데이트 시 워크플로는 실행되지만, 배포 잡은 스킵
+# develop/master 브랜치에 push되거나 PR이 생성될 때 실행
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, master ]  # develop(dev환경), master(prod환경) 브랜치 지원
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, master ]  # PR 생성 시 테스트만 실행
 
 jobs:
   deploy:
-    # 배포는 develop 브랜치로의 push 이벤트일 때만 실행
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    # develop 또는 master 브랜치에 push될 때만 배포 (PR 머지 완료 후)
+    if: (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      S3_BUCKET: ${{ secrets.S3_BUCKET_STAGING }}
-      CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}
+      AWS_REGION: ap-northeast-2
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+    - name: Extract Jira ticket from commit
+      id: jira-ticket
+      run: |
+        echo "🔍 Extracting Jira ticket..."
+        echo "Commit message: '${{ github.event.head_commit.message }}'"
+        
+        # 커밋 메시지에서 FABLINK-XXX 패턴 추출
+        COMMIT_MSG="${{ github.event.head_commit.message }}"
+        JIRA_TICKET=$(echo "$COMMIT_MSG" | grep -oE 'FABLINK-[0-9]+' | head -1)
+        echo "Method 1 result: '$JIRA_TICKET'"
+        
+        # 만약 커밋 메시지에 없으면 머지 커밋에서 추출 시도
+        if [ -z "$JIRA_TICKET" ]; then
+          # 머지 커밋 메시지 형태: "Merge pull request #XX from user/FABLINK-152"
+          JIRA_TICKET=$(echo "$COMMIT_MSG" | sed -n 's/.*from [^/]*\/\(FABLINK-[0-9]\+\).*/\1/p')
+          echo "Method 2 result: '$JIRA_TICKET'"
+        fi
+        
+        # 여전히 없으면 기본값 사용
+        if [ -z "$JIRA_TICKET" ]; then
+          JIRA_TICKET="FABLINK-Unknown"
+          echo "Fallback: '$JIRA_TICKET'"
+        fi
+        
+        echo "JIRA_TICKET=$JIRA_TICKET" >> $GITHUB_OUTPUT
+        echo "🎫 Final Jira ticket: $JIRA_TICKET"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+    - name: Set environment variables
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+          echo "🎯 Deploying to PRODUCTION environment"
+          echo "S3_BUCKET=fablink-frontend-bucket" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DISTRIBUTION_ID=E1234567890ABC" >> $GITHUB_ENV  # 실제 프로덕션 ID로 변경
+          echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          echo "FRONTEND_URL=https://fab-link.org" >> $GITHUB_ENV
+        else
+          echo "🎯 Deploying to DEVELOPMENT environment"
+          echo "S3_BUCKET=fablink-frontend-dev-bucket" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DISTRIBUTION_ID=E0987654321XYZ" >> $GITHUB_ENV  # 실제 dev ID로 변경
+          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          echo "FRONTEND_URL=https://dev.fab-link.org" >> $GITHUB_ENV
+        fi
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Prepare env (development)
-        run: node scripts/setup-env.js dev
+    - name: Build application
+      run: |
+        echo "🔨 Building Frontend for ${{ env.ENVIRONMENT }} environment..."
+        npm run build
+        echo "✅ Frontend build completed!"
 
-      - name: Disable middleware for static export (safety)
-        run: |
-          if [ -f middleware.ts ]; then
-            echo "Temporarily disabling middleware for export"
-            mv middleware.ts middleware.disabled.ts
-          fi
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Build static site (Next 15)
-        run: pnpm build
+    - name: Deploy to S3
+      run: |
+        echo "🚀 Deploying to ${{ env.ENVIRONMENT }} environment..."
+        echo "🎯 Target: ${{ env.S3_BUCKET }}"
+        
+        # S3에 파일 업로드
+        aws s3 sync out/ s3://${{ env.S3_BUCKET }} --delete
+        echo "✅ S3 deployment completed!"
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+    - name: Invalidate CloudFront
+      run: |
+        echo "🔄 Invalidating CloudFront cache..."
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+          --paths "/*"
+        echo "✅ CloudFront invalidation completed!"
 
-      - name: Sync to S3 (staging)
-        run: |
-          # Prefer out/ for Next 'export', fallback to .next/export if used
-          exportDir="out"
-          if [ -d ".next/export" ]; then
-            exportDir=".next/export"
-          fi
+    - name: Deployment Summary
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo ""
+          echo "🎉 =================================="
+          echo "✅ ${{ env.ENVIRONMENT }} Frontend Deployment SUCCESS!"
+          echo "=================================="
+          echo "🌐 Frontend URL: ${{ env.FRONTEND_URL }}"
+          echo "📦 S3 Bucket: ${{ env.S3_BUCKET }}"
+          echo "🔄 CloudFront: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
+          echo ""
+          echo "🏷️  Git Commit: ${{ github.sha }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "👤 Author: ${{ github.actor }}"
+          echo "🎯 Environment: ${{ env.ENVIRONMENT }}"
+          echo "=================================="
+        else
+          echo ""
+          echo "❌ =================================="
+          echo "💥 ${{ env.ENVIRONMENT }} Frontend Deployment FAILED!"
+          echo "=================================="
+          echo "🔍 Please check the logs above for details."
+          echo "🐛 Debug steps:"
+          echo "   1. Check build logs for compilation errors"
+          echo "   2. Verify AWS credentials and permissions"
+          echo "   3. Check S3 bucket and CloudFront configuration"
+          echo "=================================="
+          exit 1
+        fi
 
-          if [ -d "$exportDir" ]; then
-            aws s3 sync "$exportDir" s3://$S3_BUCKET --delete
-          else
-            echo "Export directory not found" && exit 1
-          fi
-
-      - name: Invalidate CloudFront cache (staging)
-        if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
-            --paths "/*"
+    - name: Send Slack notification
+      if: always()  # 성공/실패 관계없이 실행
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#개발-알림'  # 슬랙 채널명 (실제 채널명으로 변경)
+        text: |
+          🌐 *Frontend 배포 알림*
+          
+          📋 **지라 티켓**: <https://fablink.atlassian.net/jira/software/projects/FABLINK/boards/1/timeline?selectedIssue=${{ steps.jira-ticket.outputs.JIRA_TICKET }}|${{ steps.jira-ticket.outputs.JIRA_TICKET }}>
+          🌿 **브랜치**: ${{ github.ref_name }}
+          🎯 **환경**: ${{ env.ENVIRONMENT }}
+          👤 **작업자**: ${{ github.actor }}
+          📅 **시간**: ${{ github.event.head_commit.timestamp }}
+          
+          ${{ job.status == 'success' && '✅ 배포 성공!' || '❌ 배포 실패!' }}
+          
+          ${{ job.status == 'success' && format('🌐 Frontend: {0}', env.FRONTEND_URL) || '🔍 로그를 확인해주세요.' }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
