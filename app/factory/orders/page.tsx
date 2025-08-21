@@ -35,21 +35,35 @@ export default function FactoryOrdersPage() {
   const pageSize = 20
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const loadedPagesRef = useRef<Set<number>>(new Set())
 
   const loadPage = async (nextPage: number) => {
     if (loading) return
+    // 동일 페이지의 중복 로드를 방지 (React StrictMode 또는 중복 트리거 가드)
+    if (loadedPagesRef.current.has(nextPage)) return
+    loadedPagesRef.current.add(nextPage)
     setLoading(true)
     setError(null)
     try {
       const url = new URL(typeof window !== 'undefined' ? window.location.href : 'http://localhost')
       const debugParam = url.searchParams.get('debug')
       const res = await manufacturingApi.getFactoryOrdersMongo({ page: nextPage, page_size: pageSize, debug: debugParam || undefined })
-  setItems((prev: FactoryOrderItem[]) => [...prev, ...res.results])
+      setItems((prev: FactoryOrderItem[]) => {
+        // 첫 페이지는 항상 리셋
+        const base = nextPage === 1 ? [] : prev
+        const map = new Map<string, FactoryOrderItem>()
+        const keyOf = (o: FactoryOrderItem) => `${o.order_id || ''}-${o.phase || ''}-${o.factory_id || ''}`
+        for (const it of base) map.set(keyOf(it), it)
+        for (const it of (res.results || [])) map.set(keyOf(it), it)
+        return Array.from(map.values())
+      })
       setHasNext(res.has_next)
       setPage(res.page)
       if ((res as any).debug_summary) setDebugSummary((res as any).debug_summary)
     } catch (e: any) {
       setError(e?.message || '목록을 불러오지 못했습니다.')
+      // 실패 시 다시 시도할 수 있도록 마킹 해제
+      loadedPagesRef.current.delete(nextPage)
     } finally {
       setLoading(false)
     }
