@@ -124,6 +124,13 @@ class ApiClient {
         return this.request<T>(endpoint, { method: 'DELETE' })
     }
 
+    async patch<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
+        return this.request<T>(endpoint, {
+            method: 'PATCH',
+            body: body ? JSON.stringify(body) : undefined,
+        })
+    }
+
     async uploadFile<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' | 'PATCH' = 'POST'): Promise<T> {
         const authHeaders = this.getAuthHeaders()
 

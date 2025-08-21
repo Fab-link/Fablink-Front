@@ -32,7 +32,7 @@ import { useAuthContext } from "@/contexts/AuthContext"
 
 
 // 샘플 제작 업체 목록 컴포넌트
-function SampleFactoriesList({ order }: { order: any }) {
+function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () => Promise<void> | void }) {
   const [factories, setFactories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -104,6 +104,10 @@ function SampleFactoriesList({ order }: { order: any }) {
         }
       })
       setFactories(factoriesData)
+      // 상위 페이지의 진행상황 갱신(디자이너 주문 재조회)
+      if (onRefresh) {
+        try { await onRefresh() } catch {}
+      }
     } catch (error) {
       console.error('업체 선정 실패:', error)
       alert('업체 선정 중 오류가 발생했습니다.')
@@ -212,20 +216,24 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
             <div className="mb-4 text-sm text-gray-600">
               주문 코드: #{order.order_id || order.id}
             </div>
-            <SampleFactoriesList order={order} />
+            <SampleFactoriesList order={order} onRefresh={order.onRefresh} />
           </CardContent>
         </Card>
       )
 
-    case 2: // 샘플 생산 현황
+    case 2: { // 샘플 생산 현황 (Mongo steps[ index=2 ])
+      const step2 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 2) : null
+      const stages = Array.isArray(step2?.stage) ? step2.stage : []
+      const factoryName = step2?.factory_name || '업체명 미정'
+      const orderDate = order.created_at || order.createdAt
       return (
         <Card className="mt-4">
           <CardHeader>
             <CardTitle>샘플 생산 현황</CardTitle>
             <CardDescription>
               <div className="flex justify-between items-center">
-                <span>주문 코드: {order.order_id}</span>
-                <span>업체명: 프리미엄 샘플 공방</span>
+                <span>주문 코드: {order.order_id || order.id}</span>
+                <span>업체명: {factoryName}</span>
               </div>
             </CardDescription>
           </CardHeader>
@@ -236,33 +244,25 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">주문 날짜:</span>
-                    <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                    <span>{orderDate ? new Date(orderDate).toLocaleDateString() : '-'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">연락처:</span>
-                    <span>02-1234-5678</span>
+                    <span>{step2?.factory_contact || '-'}</span>
                   </div>
                 </div>
               </div>
-
               <div>
                 <h4 className="font-medium mb-3">생산 공정</h4>
                 <div className="space-y-3">
-                  {[
-                    { name: "1차 가봉", status: "done", date: "2024-01-17" },
-                    { name: "부자재 부착", status: "done", date: "2024-01-18" },
-                    { name: "마킹 및 재단", status: "active", date: null },
-                    { name: "봉제", status: "pending", date: null },
-                    { name: "검사 및 다림질", status: "pending", date: null },
-                    { name: "배송", status: "pending", date: null },
-                  ].map((process, index) => (
+                  {stages.map((process: any, index: number) => (
                     <div key={index} className="flex items-center space-x-3">
-                      <div className={`w-4 h-4 rounded-full ${getStatusColor(process.status)}`} />
-                      <span className="flex-1 text-sm">{process.name}</span>
-                      {process.status === "done" && process.date && (
-                        <span className="text-xs text-gray-500">{process.date}</span>
+                      <div className={`w-4 h-4 rounded-full ${getStatusColor(process.status || 'pending')}`} />
+                      <span className="flex-1 text-sm">{process.name || '-'}</span>
+                      {process.status === 'done' && process.end_date && (
+                        <span className="text-xs text-gray-500">{process.end_date}</span>
                       )}
-                      {process.status === "active" && <Badge variant="secondary">진행중</Badge>}
+                      {process.status === 'active' && <Badge variant="secondary">진행중</Badge>}
                     </div>
                   ))}
                 </div>
@@ -271,8 +271,11 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
           </CardContent>
         </Card>
       )
+    }
 
-    case 4: // 샘플 피드백
+    case 4: { // 샘플 피드백 (Mongo steps[ index=4 ])
+      const step4 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 4) : null
+      const items = Array.isArray(step4?.feedback_history) ? step4.feedback_history : []
       return (
         <Card className="mt-4">
           <CardHeader>
@@ -280,50 +283,172 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="border rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <img
-                      src="/placeholder.svg?height=150&width=150"
-                      alt="샘플 사진"
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">1차 생산</h4>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-3 w-3" />
-                        <span>02-1234-5678</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-3 w-3" />
-                        <span>서울시 강남구 테헤란로 123</span>
-                      </div>
+              {items.length === 0 && (
+                <div className="text-center py-8 text-gray-500">피드백 내역이 없습니다.</div>
+              )}
+              {items.map((fb: any) => (
+                <div key={fb.id || fb.index} className="border rounded-lg p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <img
+                        src={fb.image_url || "/placeholder.svg?height=150&width=150"}
+                        alt={fb.title || '샘플 사진'}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">피드백 상태:</span>
-                      <Badge variant="outline">배송 완료</Badge>
+                    <div>
+                      <h4 className="font-medium mb-2">{fb.title || '피드백'}</h4>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Phone className="h-3 w-3" />
+                          <span>{fb.factory_contact || '-'}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-3 w-3" />
+                          <span>{fb.factory_address || '-'}</span>
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Button size="sm" variant="outline" className="w-full bg-transparent">
-                        <Edit className="h-3 w-3 mr-1" />
-                        작업 지시서 수정
-                      </Button>
-                      <Button size="sm" className="w-full">
-                        <Check className="h-3 w-3 mr-1" />
-                        작업 지시서 확정
-                      </Button>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">상태:</span>
+                        <Badge variant="outline">{fb.status || '-'}</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <Button size="sm" variant="outline" className="w-full bg-transparent">
+                          <Edit className="h-3 w-3 mr-1" />
+                          작업 지시서 수정
+                        </Button>
+                        <Button size="sm" className="w-full">
+                          <Check className="h-3 w-3 mr-1" />
+                          작업 지시서 확정
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+    case 3: { // 샘플 생산 배송 조회
+      const step3 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 3) : null
+      return (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>샘플 생산 배송 조회</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="flex justify-between"><span className="text-gray-600">제품명:</span><span>{step3?.product_name || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">수량:</span><span>{step3?.product_quantity || '-'}</span></div>
+              </div>
+              <div>
+                <div className="flex justify-between"><span className="text-gray-600">업체명:</span><span>{step3?.factory_name || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">연락처:</span><span>{step3?.factory_contact || '-'}</span></div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center space-x-2">
+                <Truck className="h-4 w-4" />
+                <span>배송 상태: {step3?.delivery_status || '-'}</span>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge variant="outline">운송장: {step3?.delivery_code || '-'}</Badge>
               </div>
             </div>
           </CardContent>
         </Card>
       )
+    }
+    case 5: { // 본 생산 업체 선정
+      const step5 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 5) : null
+      const list = Array.isArray(step5?.factory_list) ? step5.factory_list : []
+      return (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>본 생산 업체 선정</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {list.length === 0 && <div className="text-gray-500">입찰 내역이 없습니다.</div>}
+              {list.map((f: any, i: number) => (
+                <div key={f.id || f.factory_id || i} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Factory className="h-5 w-5" />
+                    <div>
+                      <div className="font-medium">{f.name || '-'}</div>
+                      <div className="text-xs text-gray-500">{f.contact || '-'}</div>
+                    </div>
+                  </div>
+                  <div className="text-sm">
+                    <div>단가: {f.work_price ? Number(f.work_price).toLocaleString() : '-'}원</div>
+                    <div>작업기간: {f.work_duration || '-'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+    case 6: { // 본 생산 현황
+      const step6 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 6) : null
+      const stages = Array.isArray(step6?.stage) ? step6.stage : []
+      return (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>본 생산 현황</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stages.map((p: any, i: number) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className={`w-4 h-4 rounded-full ${getStatusColor(p.status || 'pending')}`} />
+                  <span className="flex-1 text-sm">{p.name || '-'}</span>
+                  {p.status === 'done' && p.end_date && <span className="text-xs text-gray-500">{p.end_date}</span>}
+                  {p.status === 'active' && <Badge variant="secondary">진행중</Badge>}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+    case 7: { // 본 생산 배송 조회
+      const step7 = Array.isArray(order.steps) ? order.steps.find((s: any) => s.index === 7) : null
+      return (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>본 생산 배송 조회</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="flex justify-between"><span className="text-gray-600">제품명:</span><span>{step7?.product_name || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">수량:</span><span>{step7?.product_quantity || '-'}</span></div>
+              </div>
+              <div>
+                <div className="flex justify-between"><span className="text-gray-600">업체명:</span><span>{step7?.factory_name || '-'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">연락처:</span><span>{step7?.factory_contact || '-'}</span></div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center space-x-2">
+                <Truck className="h-4 w-4" />
+                <span>배송 상태: {step7?.delivery_status || '-'}</span>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge variant="outline">운송장: {step7?.delivery_code || '-'}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
 
     default:
       return (
@@ -348,27 +473,37 @@ export default function DesignerOrdersPage() {
   const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await manufacturingApi.getDesignerOrders()
-        const ordersData = response.results || response
-        const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
-          order.product?.designer === user?.id || order.productInfo?.designer === user?.id
-        ).map(order => ({
-          ...order,
-          currentStep: getOrderCurrentStep(order),
-          steps: getOrderSteps(order)
-        })) : []
-        setOrders(userOrders)
-      } catch (error) {
-        console.error('주문 데이터 로딩 실패:', error)
-        setOrders([])
-      } finally {
-        setLoading(false)
+  const fetchOrders = async () => {
+    try {
+      const response = await manufacturingApi.getDesignerOrders()
+      const ordersData = response.results || response
+      const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
+        order.product?.designer === user?.id || order.productInfo?.designer === user?.id
+      ).map(order => ({
+        ...order,
+        currentStep: getOrderCurrentStep(order),
+        // 상세는 backend steps 사용, 리스트 상태는 계산된 timelineSteps 사용
+        timelineSteps: getOrderSteps(order),
+        onRefresh: fetchOrders,
+      })) : []
+      setOrders(userOrders)
+      // 선택된 주문이 있으면 최신 객체로 재매칭
+      if (selectedOrder) {
+        const refreshed = userOrders.find(o => (o.order_id || o.id) === (selectedOrder.order_id || selectedOrder.id))
+        if (refreshed) {
+          setSelectedOrder(refreshed)
+          setSelectedStep(getOrderCurrentStep(refreshed))
+        }
       }
+    } catch (error) {
+      console.error('주문 데이터 로딩 실패:', error)
+      setOrders([])
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     if (user) {
       fetchOrders()
     }
@@ -379,15 +514,11 @@ export default function DesignerOrdersPage() {
     setShowQuoteModal(true)
   }
 
-  // 주문 상태에 따른 현재 단계 계산
+  // Mongo designer_orders.current_step_index 기반 현재 단계 계산(백엔드에서 내려줌)
   const getOrderCurrentStep = (order: any) => {
-    switch (order.status) {
-      case 'pending': return 1
-      case 'confirmed': return 2
-      case 'in_production': return 3
-      case 'completed': return 7
-      default: return 1
-    }
+    const idx = order.current_step_index || order.currentStep || order.current_step || 1
+    const n = Number(idx)
+    return Number.isFinite(n) && n > 0 ? Math.min(Math.max(1, n), 7) : 1
   }
 
   // 주문 단계 정보 생성
@@ -497,7 +628,7 @@ export default function DesignerOrdersPage() {
                           }`}
                           onClick={() => {
                             setSelectedOrder(order)
-                            setSelectedStep(null)
+                            setSelectedStep(getOrderCurrentStep(order))
                           }}
                         >
                           <div className="flex justify-between items-start mb-2">
@@ -509,7 +640,7 @@ export default function DesignerOrdersPage() {
                           <p className="text-xs text-gray-600 mb-2">{order.order_id}</p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-500">{order.created_at || order.createdAt ? new Date(order.created_at || order.createdAt).toLocaleDateString() : '날짜 정보 없음'}</span>
-                            <Progress value={(order.currentStep / 7) * 100} className="w-16 h-2" />
+                            <Progress value={(getOrderCurrentStep(order) / 7) * 100} className="w-16 h-2" />
                           </div>
                         </div>
                       ))}
@@ -546,7 +677,7 @@ export default function DesignerOrdersPage() {
                         </div>
                         <div>
                           <span className="text-gray-600">진행률:</span>
-                          <p className="font-medium">{selectedOrder.currentStep}/7 단계</p>
+                          <p className="font-medium">{getOrderCurrentStep(selectedOrder)}/7 단계</p>
                         </div>
                       </div>
                     </CardContent>
@@ -560,9 +691,10 @@ export default function DesignerOrdersPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {selectedOrder.steps?.map((step: any, index: number) => {
+                        {selectedOrder.timelineSteps?.map((step: any, index: number) => {
+                          const currentStep = getOrderCurrentStep(selectedOrder)
                           const Icon = getStepIcon(step.id)
-                          const isClickable = step.status !== "pending"
+                          const isClickable = step.id <= currentStep
 
                           return (
                             <div key={step.id}>
@@ -601,7 +733,7 @@ export default function DesignerOrdersPage() {
                               {selectedStep === step.id && renderStepDetail(selectedOrder, step.id, getStatusColor)}
 
                               {/* Connector Line */}
-                              {index < selectedOrder.steps.length - 1 && <div className="ml-5 w-0.5 h-4 bg-gray-200" />}
+                              {index < selectedOrder.timelineSteps.length - 1 && <div className="ml-5 w-0.5 h-4 bg-gray-200" />}
                             </div>
                           )
                         })}
