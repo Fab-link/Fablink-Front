@@ -32,9 +32,8 @@ export default function FactoryQuotesPage() {
       try {
         const response = await manufacturingApi.getOrders()
         console.log('API 응답:', response) // 디버깅용
-        // Django REST framework pagination 응답 처리
-        const ordersData = response.results || response
-        const ordersList = Array.isArray(ordersData) ? ordersData : []
+  // manufacturingApi.getOrders()는 배열을 반환함
+  const ordersList = Array.isArray(response) ? response : []
         setOrders(ordersList)
         setSortedOrders(ordersList)
       } catch (error) {
@@ -97,7 +96,8 @@ export default function FactoryQuotesPage() {
     try {
       const bidData = {
         order: selectedOrder.id,
-        unit_price: parseFloat(quoteForm.unitPrice),
+  // 백엔드 통합 스키마는 work_price를 사용
+  work_price: parseFloat(quoteForm.unitPrice),
         estimated_delivery_days: Math.max(1, deliveryDays),
         notes: quoteForm.notes
       }
@@ -106,8 +106,7 @@ export default function FactoryQuotesPage() {
       
       // 주문 목록 새로고침
       const response = await manufacturingApi.getOrders()
-      const ordersData = response.results || response
-      const ordersList = Array.isArray(ordersData) ? ordersData : []
+  const ordersList = Array.isArray(response) ? response : []
       setOrders(ordersList)
       applySorting(ordersList, sortType)
       

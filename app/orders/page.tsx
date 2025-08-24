@@ -78,7 +78,7 @@ const sampleFactoryBids = [
       contact: "02-1234-5678",
       address: "서울시 강남구 테헤란로 123"
     },
-    unit_price: 150000,
+  work_price: 150000,
     estimated_delivery_days: 4,
     status: "selected",
     notes: "고품질 샘플 제작 전문",
@@ -92,7 +92,7 @@ const sampleFactoryBids = [
       contact: "02-8765-4321",
       address: "서울시 마포구 홍대로 456"
     },
-    unit_price: 180000,
+  work_price: 180000,
     estimated_delivery_days: 3,
     status: "pending",
     notes: "빠른 제작 가능",
@@ -202,7 +202,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex items-center space-x-2 font-medium text-lg">
                           <Won className="h-4 w-4" />
-                          <span>{bid.unit_price.toLocaleString()}원</span>
+                          <span>{(bid as any).work_price?.toLocaleString?.() || '-' }원</span>
                         </div>
                       </div>
                       <Button size="sm" className="bg-black text-white hover:bg-gray-800">

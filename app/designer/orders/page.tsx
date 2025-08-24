@@ -45,10 +45,10 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
       try {
         const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
         console.log('API Response:', response)
-        const bidsData = response || []
+  const bidsData = Array.isArray(response) ? response : []
         
-        // 입찰 데이터를 공장 정보로 변환
-        const factoriesData = bidsData.map((bid: any) => {
+  // 입찰 데이터를 공장 정보로 변환
+  const factoriesData = bidsData.map((bid: any) => {
           const factoryInfo = bid.factory_info || bid.factoryInfo || {}
           return {
             id: bid.id,
@@ -58,7 +58,7 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
             address: factoryInfo.address || '주소 없음',
             profile_image: factoryInfo.profile_image,
             estimatedTime: `${bid.estimated_delivery_days || bid.estimatedDeliveryDays || 0}일`,
-            price: bid.unit_price || bid.unitPrice || 0,
+            price: bid.work_price || bid.unit_price || bid.unitPrice || 0,
             totalPrice: bid.total_price || bid.totalPrice || 0,
             dueDate: bid.expect_work_day || bid.expectWorkDay || '미정',
             status: bid.status || 'pending',
@@ -85,8 +85,8 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
       alert('업체를 선정했습니다.')
       // 목록 새로고침
       const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
-      const bidsData = response || []
-      const factoriesData = bidsData.map((bid: any) => {
+  const bidsData = Array.isArray(response) ? response : []
+  const factoriesData = bidsData.map((bid: any) => {
         const factoryInfo = bid.factory_info || bid.factoryInfo || {}
         return {
           id: bid.id,
@@ -96,7 +96,7 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
           address: factoryInfo.address || '주소 없음',
           profile_image: factoryInfo.profile_image,
           estimatedTime: `${bid.estimated_delivery_days || bid.estimatedDeliveryDays || 0}일`,
-          price: bid.unit_price || bid.unitPrice || 0,
+          price: bid.work_price || bid.unit_price || bid.unitPrice || 0,
           totalPrice: bid.total_price || bid.totalPrice || 0,
           dueDate: bid.expect_work_day || bid.expectWorkDay || '미정',
           status: bid.status || 'pending',
@@ -475,8 +475,8 @@ export default function DesignerOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const response = await manufacturingApi.getDesignerOrders()
-      const ordersData = response.results || response
+  const response = await manufacturingApi.getDesignerOrders()
+  const ordersData = (response as any)?.results ?? (Array.isArray(response) ? response : [])
       const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
         order.product?.designer === user?.id || order.productInfo?.designer === user?.id
       ).map(order => ({
@@ -637,7 +637,7 @@ export default function DesignerOrdersPage() {
                               {order.quantity}개
                             </Badge>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{order.order_id}</p>
+                          <p className="text-xs text-gray-600 mb-2">주문코드: {order.order_id || order.id}</p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-500">{order.created_at || order.createdAt ? new Date(order.created_at || order.createdAt).toLocaleDateString() : '날짜 정보 없음'}</span>
                             <Progress value={(getOrderCurrentStep(order) / 7) * 100} className="w-16 h-2" />

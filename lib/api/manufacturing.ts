@@ -17,7 +17,7 @@ export interface OrderData {
   id?: number;
   product: number;
   quantity: number;
-  unit_price?: number;
+  work_price?: number;
   customer_name?: string;
   customer_contact?: string;
   shipping_address?: string;
@@ -32,7 +32,7 @@ export interface FactoryBidData {
   order: number;
   factory?: number;
   factory_info?: any;
-  unit_price: number;
+  work_price: number;
   estimated_delivery_days: number;
   notes?: string;
   status?: 'pending' | 'selected' | 'rejected';
@@ -87,7 +87,10 @@ export const manufacturingApi = {
    * 주문 목록 조회 (공장주용, Django ORM 기반 기존)
    */
   getOrders: async () => {
-    return apiClient.get<OrderData[]>('/manufacturing/factory-orders/');
+  const data = await apiClient.get<any>('/manufacturing/factory-orders/')
+  // 백엔드가 { results: [...] } 형태를 반환하므로 배열로 정규화
+  const items = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : [])
+  return items as OrderData[]
   },
 
   /**
@@ -105,18 +108,29 @@ export const manufacturingApi = {
     }
     const raw = await apiClient.get<any>('/manufacturing/factory-orders-mongo/', query)
 
-    // 일부 환경에서 camelCase로 응답되는 경우를 대비한 정규화
-    const hasCamelTop = typeof raw?.pageSize !== 'undefined' || typeof raw?.hasNext !== 'undefined'
-    const normalizeItem = (it: any) => {
+    // 통합 스키마 정규화: snake/camel 여부와 관계없이 동일한 형태로 반환
+  const pickStages = (it: any) => {
+      const steps = Array.isArray(it?.steps) ? it.steps : []
+      // phase 기준으로 생산 현황 스텝 선택: sample -> index 2, main -> index 6
+      const targetIndex = (it?.phase === 'main') ? 6 : 2
+      let step = steps.find((s: any) => Number(s?.index) === targetIndex)
+      if (!step) {
+        // 이름 기반 보조 탐색
+        const targetName = targetIndex === 6 ? '본 생산 현황' : '샘플 생산 현황'
+        step = steps.find((s: any) => (s?.name === targetName))
+      }
+      const stageList = step?.stage ?? step?.stages ?? []
+      if (!Array.isArray(stageList)) return []
+      return stageList.map((s: any) => ({
+        index: s?.index,
+        name: s?.name,
+        status: s?.status,
+        end_date: s?.end_date ?? s?.endDate ?? '',
+      }))
+    }
+
+  const normalizeItem = (it: any) => {
       if (!it || typeof it !== 'object') return it
-      const steps = Array.isArray(it.steps)
-        ? it.steps.map((s: any) => ({
-            index: s.index,
-            name: s.name,
-            status: s.status,
-            end_date: s.endDate ?? s.end_date ?? '',
-          }))
-        : it.steps
       return {
         order_id: it.order_id ?? it.orderId,
         phase: it.phase,
@@ -124,52 +138,54 @@ export const manufacturingApi = {
         overall_status: it.overall_status ?? it.overallStatus ?? '',
         due_date: it.due_date ?? it.dueDate ?? null,
         quantity: it.quantity,
-        unit_price: it.unit_price ?? it.unitPrice ?? null,
+    // 가격 필드 표준화: work_price로 통일 (과거 unit_price 호환)
+    work_price: it.work_price ?? it.unit_price ?? it.unitPrice ?? null,
         last_updated: it.last_updated ?? it.lastUpdated,
         product_id: it.product_id ?? it.productId ?? null,
-        steps,
+        // 생산 단계(단계 목록을 stage 레벨로 평탄화)
+        steps: pickStages(it),
         product_name: it.product_name ?? it.productName ?? '',
         designer_id: it.designer_id ?? it.designerId ?? null,
         designer_name: it.designer_name ?? it.designerName ?? '',
       }
     }
 
-    if (hasCamelTop) {
-      const debug_summary = raw.debug_summary ?? raw.debugSummary
-        ? {
-            ...(raw.debug_summary ?? {}),
-            ...(raw.debugSummary ?? {}),
-            items: Array.isArray(raw.debugSummary?.items)
-              ? raw.debugSummary.items.map((d: any) => ({
-                  order_id: d.order_id ?? d.orderId,
-                  factory_id: d.factory_id ?? d.factoryId,
-                  phase: d.phase,
-                  product_id: d.product_id ?? d.productId,
-                  product_name: d.product_name ?? d.productName,
-                  designer_id: d.designer_id ?? d.designerId,
-                  designer_name: d.designer_name ?? d.designerName,
-                  unit_price: d.unit_price ?? d.unitPrice,
-                  currency: d.currency,
-                  due_date: d.due_date ?? d.dueDate,
-                  quantity: d.quantity,
-                  overall_status: d.overall_status ?? d.overallStatus,
-                }))
-              : raw.debug_summary?.items,
-          }
-        : undefined
+    const page_size = raw?.page_size ?? raw?.pageSize
+    const has_next = raw?.has_next ?? raw?.hasNext
 
-      return {
-        count: raw.count,
-        page: raw.page,
-        page_size: raw.page_size ?? raw.pageSize,
-        has_next: raw.has_next ?? raw.hasNext,
-        results: Array.isArray(raw.results) ? raw.results.map(normalizeItem) : [],
-        ...(debug_summary ? { debug_summary } : {}),
+    // debug_summary 정규화 (있을 때만)
+    const makeDebug = () => {
+      const dbg = raw?.debug_summary ?? raw?.debugSummary
+      if (!dbg) return undefined
+      const srcItems = Array.isArray(dbg.items) ? dbg.items : []
+    return {
+        ...dbg,
+        items: srcItems.map((d: any) => ({
+          order_id: d.order_id ?? d.orderId,
+          factory_id: d.factory_id ?? d.factoryId,
+          phase: d.phase,
+          product_id: d.product_id ?? d.productId,
+          product_name: d.product_name ?? d.productName,
+          designer_id: d.designer_id ?? d.designerId,
+          designer_name: d.designer_name ?? d.designerName,
+      // debug도 work_price로 통일 (과거 unit_price 호환)
+      work_price: d.work_price ?? d.unit_price ?? d.unitPrice,
+          currency: d.currency,
+          due_date: d.due_date ?? d.dueDate,
+          quantity: d.quantity,
+          overall_status: d.overall_status ?? d.overallStatus,
+        })),
       }
     }
 
-    // 이미 snake_case면 그대로 반환
-    return raw
+    return {
+      count: raw?.count ?? 0,
+      page: raw?.page ?? 1,
+      page_size,
+      has_next: !!has_next,
+      results: Array.isArray(raw?.results) ? raw.results.map(normalizeItem) : [],
+      ...(makeDebug() ? { debug_summary: makeDebug() } : {}),
+    }
   },
 
   /**
@@ -223,7 +239,12 @@ export const manufacturingApi = {
    * @returns 생성된 입찰 정보
    */
   createBid: async (bidData: any) => {
-    return apiClient.post('/manufacturing/bids/', bidData);
+    // 루트 백엔드는 unit_price를 기대하므로 work_price가 오면 호환 매핑
+    const payload = { ...bidData }
+    if (typeof payload.unit_price === 'undefined' && typeof payload.work_price !== 'undefined') {
+      payload.unit_price = payload.work_price
+    }
+    return apiClient.post('/manufacturing/bids/', payload)
   },
   
   /**
