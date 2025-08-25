@@ -37,7 +37,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-2">
               <Shirt className="h-8 w-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">옷 제작 플랫폼</h1>
+              <h1 className="text-2xl font-bold text-gray-900">FabLink</h1>
             </div>
             <div className="flex items-center space-x-4">
               <nav className="hidden md:flex space-x-8">
@@ -163,7 +163,7 @@ export default function HomePage() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <Shirt className="h-6 w-6" />
-                <span className="text-lg font-bold">옷 제작 플랫폼</span>
+                <span className="text-lg font-bold">FabLink</span>
               </div>
               <p className="text-gray-400">AI 기반 맞춤형 의류 제작 서비스</p>
             </div>
@@ -199,7 +199,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 옷 제작 플랫폼. All rights reserved.</p>
+            <p>&copy; 2024 FabLink. All rights reserved.</p>
           </div>
         </div>
       </footer>

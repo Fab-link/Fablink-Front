@@ -8,7 +8,7 @@ import { ManufacturingProvider } from "@/contexts/ManufacturingContext"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "옷 제작 플랫폼",
+  title: "FabLink",
   description: "AI 기반 맞춤형 의류 제작 서비스",
   generator: 'v0.dev'
 }
