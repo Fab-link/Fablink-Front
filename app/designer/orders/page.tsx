@@ -581,8 +581,8 @@ export default function DesignerOrdersPage() {
                 onClick={() => router.push('/')}
                 className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors mr-4"
               >
-                <Shirt className="h-6 w-6" />
-                <span className="text-xl font-bold">Fablink</span>
+                <img src="/FabLink_logo.png" alt="FabLink" className="h-12 w-auto" />
+                <span className="sr-only">FabLink</span>
               </button>
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">

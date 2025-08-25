@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, Brain, FactoryIcon as Fabric, Package, Shirt } from "lucide-react"
+import { Loader2, Brain, FactoryIcon as Fabric, Package } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function ManufacturingStep3() {
@@ -60,8 +60,8 @@ export default function ManufacturingStep3() {
             onClick={() => router.push('/')}
             className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
           >
-            <Shirt className="h-8 w-8" />
-            <span className="text-2xl font-bold">Fablink</span>
+            <img src="/FabLink_logo.png" alt="FabLink" className="h-14 w-auto" />
+            <span className="sr-only">FabLink</span>
           </button>
         </div>
         

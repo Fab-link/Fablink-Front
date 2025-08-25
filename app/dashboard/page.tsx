@@ -152,8 +152,8 @@ export default function DashboardPage() {
               </Sheet>
 
               <div className="flex items-center space-x-2">
-                <Shirt className="h-8 w-8 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900">Fablink</h1>
+                <img src="/FabLink_logo.png" alt="FabLink" className="h-14 w-auto" />
+                <h1 className="sr-only">FabLink</h1>
               </div>
             </div>
 
