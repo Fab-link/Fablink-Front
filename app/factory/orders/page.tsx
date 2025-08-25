@@ -70,6 +70,8 @@ export default function FactoryOrdersPage() {
   const [progressSubmitting, setProgressSubmitting] = useState(false)
   // stage 토글 상태 (step index 기준) - 단계별 펼침/접힘
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set())
+  // debug 모드 여부 (?debug=1 등)
+  const [isDebug, setIsDebug] = useState(false)
   // stage 토글 상태 제거 (항상 표시)
   // 재시도/재요청 제어 상태
   const [firstPageAttempts, setFirstPageAttempts] = useState(0)
@@ -93,6 +95,12 @@ export default function FactoryOrdersPage() {
     try {
       const url = new URL(typeof window !== 'undefined' ? window.location.href : 'http://localhost')
       debugParam = url.searchParams.get('debug')
+      if (debugParam) {
+        const v = debugParam.toLowerCase()
+        setIsDebug(['1','true','yes'].includes(v))
+      } else {
+        setIsDebug(false)
+      }
     } catch {}
 
     // debug 값이 바뀌었다면 페이지 캐시 초기화 및 1페이지부터 재시작
@@ -110,7 +118,7 @@ export default function FactoryOrdersPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await manufacturingApi.getFactoryOrdersMongo({ page: nextPage, page_size: pageSize, debug: debugParam || undefined })
+  const res = await manufacturingApi.getOrders({ page: nextPage, page_size: pageSize, debug: debugParam || undefined })
       if (nextPage === 1) {
         setLastCount(typeof res.count === 'number' ? res.count : null)
         setNeedRetry(false)
@@ -166,13 +174,17 @@ export default function FactoryOrdersPage() {
         for (const it of base as FactoryOrderItem[]) map.set(keyOf(it), it)
         for (const it of (res.results || []) as FactoryOrderItem[]) map.set(keyOf(it), normalizeItem(it))
         const arr = Array.from(map.values())
-        const parseOrderId = (v: string | undefined) => {
-          if (!v) return NaN
-          // 숫자만 추출 후 숫자 비교 (전부 숫자면), 아니면 NaN
-          const numStr = v.match(/\d+/)?.[0]
+        const parseOrderId = (v: unknown) => {
+          if (v === null || v === undefined) return NaN
+          let s: string = ''
+          if (typeof v === 'string') s = v
+          else if (typeof v === 'number') s = String(v)
+          else if (typeof (v as any).toString === 'function') s = (v as any).toString()
+          if (!s) return NaN
+          const numStr = s.match(/\d+/)?.[0]
           if (!numStr) return NaN
-            const n = Number(numStr)
-          return isNaN(n) ? NaN : n
+          const n = Number(numStr)
+          return Number.isNaN(n) ? NaN : n
         }
         arr.sort((a, b) => {
           const na = parseOrderId(a.order_id)
@@ -227,6 +239,21 @@ export default function FactoryOrdersPage() {
     }, delay)
     return () => clearTimeout(timer)
   }, [needRetry, firstPageAttempts, isAuthenticated, isLoading])
+
+  // 초기 마운트 시 debug 파라미터 감지 (popstate 로 뒤로가기 대응)
+  useEffect(() => {
+    const updateDebug = () => {
+      try {
+        const url = new URL(window.location.href)
+        const d = url.searchParams.get('debug')
+        if (d) setIsDebug(['1','true','yes'].includes(d.toLowerCase()))
+        else setIsDebug(false)
+      } catch {}
+    }
+    updateDebug()
+    window.addEventListener('popstate', updateDebug)
+    return () => window.removeEventListener('popstate', updateDebug)
+  }, [])
 
   // count=0 & steps 아직 안 올라온 레이스 완충: 첫 성공(count=0) 직후 한 번만 재확인 (document 생성 지연 대비)
   useEffect(() => {
@@ -658,16 +685,10 @@ export default function FactoryOrdersPage() {
                     <div>수량: {order.quantity ?? '-'}</div>
                     <div>
                       단가: {(() => {
-<<<<<<< HEAD
-                        const wp = order.work_price
-                        if (wp === null || wp === undefined) return '-'
-                        const n = typeof wp === 'string' ? Number(wp) : wp
-=======
-                        const raw = (order as any).work_price
+                        const raw = (order as any).work_price ?? (order as any).workPrice
                         if (raw === null || raw === undefined || raw === '') return '-'
-                        const n = typeof raw === 'string' ? Number(raw) : raw
->>>>>>> feature/FABLINK-157
-                        return isNaN(n) ? '-' : `${n.toLocaleString()}원`
+                        const num = typeof raw === 'string' ? Number(raw) : raw
+                        return isNaN(num) ? '-' : `${num.toLocaleString()}원`
                       })()}
                     </div>
                     <div>납기일: {order.due_date || '-'}</div>
@@ -691,6 +712,14 @@ export default function FactoryOrdersPage() {
                     <Button variant="outline" size="sm" onClick={() => openDetail(order.order_id)}>상세 보기</Button>
                   </div>
                 </div>
+                {isDebug && (
+                  <div className="mt-4">
+                    <details className="group">
+                      <summary className="cursor-pointer text-[11px] text-gray-500 select-none">Raw order JSON</summary>
+                      <pre className="mt-2 text-[10px] bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap break-all border border-gray-200">{JSON.stringify(order, null, 2)}</pre>
+                    </details>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )})}
@@ -748,6 +777,14 @@ export default function FactoryOrdersPage() {
                         return renderStepRow(s, detailDoc.current_step_index || 1, reorderedIndex, detailDoc.current_step_index || 1)
                       })}
                   </div>
+                  {isDebug && (
+                    <div className="mt-4">
+                      <details className="group">
+                        <summary className="cursor-pointer text-[11px] text-gray-500 select-none">Raw detail JSON</summary>
+                        <pre className="mt-2 text-[10px] bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap break-all border border-gray-200">{JSON.stringify(detailDoc, null, 2)}</pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -802,6 +839,12 @@ export default function FactoryOrdersPage() {
                     {Array.isArray(detailDoc.steps) && detailDoc.steps.filter((s: any) => s.index !== 1).map((s: any, i: number) => renderStepRow(s, detailDoc.current_step_index || 1, i + 1, detailDoc.current_step_index || 1))}
                   </div>
                 </div>
+                {isDebug && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2">Raw detail JSON</h3>
+                    <pre className="text-[10px] bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap break-all border border-gray-200">{JSON.stringify(detailDoc, null, 2)}</pre>
+                  </div>
+                )}
               </div>
             )}
           </SheetContent>

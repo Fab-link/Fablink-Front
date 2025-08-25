@@ -30,12 +30,29 @@ export default function FactoryQuotesPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await manufacturingApi.getOrders()
-        console.log('API 응답:', response) // 디버깅용
-  // manufacturingApi.getOrders()는 배열을 반환함
-  const ordersList = Array.isArray(response) ? response : []
-        setOrders(ordersList)
-        setSortedOrders(ordersList)
+        const response = await manufacturingApi.getOrders({ page: 1, page_size: 200 })
+        console.log('getOrders 응답 객체:', response)
+        const rawList = Array.isArray(response) ? response : Array.isArray((response as any)?.results) ? (response as any).results : []
+        console.log('rawList 길이:', rawList.length, rawList)
+        // status 가 내려오지 않는 현 DB 응답을 감안해 기본값 sample_pending 부여
+        const normalized = rawList.map((o: any) => {
+          const productInfo = o.productInfo || {}
+          return {
+            ...o,
+            orderId: o.order_id || o.orderId || o.id,
+            quantity: o.quantity ?? productInfo.quantity,
+            createdAt: o.created_at || o.createdAt || o.order_date || o.orderDate || productInfo.createdAt || new Date().toISOString(),
+            status: o.status || o.request_status || o.requestStatus || 'sample_pending',
+            // 디자이너(=고객) 정보 매핑 (백엔드 ProductListSerializer 확장 필드 사용)
+            customerName: productInfo.designer_name || productInfo.designerName || '',
+            customerContact: productInfo.designer_contact || productInfo.designerContact || '',
+            shippingAddress: productInfo.designer_address || productInfo.designerAddress || '',
+            productInfo,
+          }
+        })
+        console.log('normalized:', normalized)
+        setOrders(normalized)
+        setSortedOrders(normalized)
       } catch (error) {
         console.error('주문 데이터 로딩 실패:', error)
         setOrders([]) // 에러 시 빈 배열로 설정
@@ -50,6 +67,15 @@ export default function FactoryQuotesPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      // RequestOrder 기반 커스텀 상태 (샘플/생산 단계 구분)
+      case 'sample_pending':
+      case 'sample_matched':
+        return <Badge className="bg-purple-100 text-purple-800">샘플</Badge>
+      case 'product_pending':
+      case 'product_matched':
+        return <Badge className="bg-teal-100 text-teal-800">생산</Badge>
+      case 'finished':
+        return <Badge className="bg-green-100 text-green-800">완료</Badge>
       case 'pending':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">검토 중</Badge>
       case 'responded':
@@ -104,10 +130,24 @@ export default function FactoryQuotesPage() {
       await manufacturingApi.createBid(bidData)
       
       // 주문 목록 새로고침
-      const response = await manufacturingApi.getOrders()
-  const ordersList = Array.isArray(response) ? response : []
-      setOrders(ordersList)
-      applySorting(ordersList, sortType)
+      const response = await manufacturingApi.getOrders({ page: 1, page_size: 200 })
+      const rawList = Array.isArray(response) ? response : Array.isArray((response as any)?.results) ? (response as any).results : []
+      const normalized = rawList.map((o: any) => {
+        const productInfo = o.productInfo || {}
+        return {
+          ...o,
+          orderId: o.order_id || o.orderId || o.id,
+          quantity: o.quantity ?? productInfo.quantity,
+          createdAt: o.created_at || o.createdAt || o.order_date || o.orderDate || productInfo.createdAt || new Date().toISOString(),
+          status: o.status || o.request_status || o.requestStatus || 'sample_pending',
+          customerName: productInfo.designer_name || productInfo.designerName || '',
+          customerContact: productInfo.designer_contact || productInfo.designerContact || '',
+          shippingAddress: productInfo.designer_address || productInfo.designerAddress || '',
+          productInfo,
+        }
+      })
+      setOrders(normalized)
+      applySorting(normalized, sortType)
       
       alert('입찰이 성공적으로 제출되었습니다.')
       setShowQuoteModal(false)
@@ -139,7 +179,7 @@ export default function FactoryQuotesPage() {
         break
       default:
         // 기본 정렬 (생성일 기준)
-        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
         break
     }
     
@@ -226,7 +266,7 @@ export default function FactoryQuotesPage() {
         {!loading && Array.isArray(sortedOrders) && sortedOrders.length > 0 && (
           <div className="space-y-6">
             {sortedOrders.map((order, index) => (
-              <Card key={order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
+              <Card key={order.orderId || order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -249,7 +289,7 @@ export default function FactoryQuotesPage() {
                     <div className="text-right text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
-                        <span>주문일: {new Date(order.createdAt).toLocaleDateString()}</span>
+                        <span>주문일: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -260,7 +300,7 @@ export default function FactoryQuotesPage() {
                       <div>
                         <h4 className="font-medium text-gray-900 mb-2">주문 정보</h4>
                         <div className="space-y-1 text-sm text-gray-600">
-                          <p>수량: {order.quantity}개</p>
+                          <p>수량: {order.quantity ?? order.productInfo?.quantity ?? '-'}개</p>
                           <p>입찰 단가: {(() => { const v = order.work_price ?? order.workPrice; return (v !== undefined && v !== null && v > 0) ? `${v.toLocaleString()}원` : '미입찰'; })()}</p>
                         </div>
                       </div>
