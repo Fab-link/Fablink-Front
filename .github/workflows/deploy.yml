@@ -23,6 +23,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Validate required secrets
+      run: |
+        missing=0
+        check_secret() { if [ -z "$1" ]; then echo "::error::Missing required secret: $2"; missing=1; fi }
+        # Core AWS creds
+        check_secret "${{ secrets.AWS_ACCESS_KEY_ID }}" AWS_ACCESS_KEY_ID
+        check_secret "${{ secrets.AWS_SECRET_ACCESS_KEY }}" AWS_SECRET_ACCESS_KEY
+        # Optional session token (no fail if missing, but warn)
+        if [ -z "${{ secrets.AWS_SESSION_TOKEN }}" ]; then echo "::warning::AWS_SESSION_TOKEN not set (OK if using long-lived keys)"; fi
+        # Region (optional as we default to env), warn if missing
+        if [ -z "${{ secrets.AWS_REGION }}" ]; then echo "::notice::AWS_REGION secret not set; using default $AWS_REGION"; fi
+        # Buckets & CloudFront IDs for both envs
+        check_secret "${{ secrets.S3_BUCKET_PROD }}" S3_BUCKET_PROD
+        check_secret "${{ secrets.S3_BUCKET_STAGING }}" S3_BUCKET_STAGING
+        check_secret "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_PROD }}" CLOUDFRONT_DISTRIBUTION_ID_PROD
+        check_secret "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}" CLOUDFRONT_DISTRIBUTION_ID_STAGING
+        # Slack webhook
+        check_secret "${{ secrets.SLACK_WEBHOOK_URL }}" SLACK_WEBHOOK_URL
+        if [ "$missing" -eq 1 ]; then echo "::error::One or more required secrets are missing"; exit 1; fi
+
     - name: Extract Jira ticket from commit
       id: jira-ticket
       run: |
@@ -52,16 +72,18 @@ jobs:
 
     - name: Set environment variables
       run: |
+        # Optional override of region from secrets
+        if [ -n "${{ secrets.AWS_REGION }}" ]; then echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV; fi
         if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
           echo "🎯 Deploying to PRODUCTION environment"
-          echo "S3_BUCKET=fablink-frontend-bucket" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DISTRIBUTION_ID=E1234567890ABC" >> $GITHUB_ENV  # 실제 프로덕션 ID로 변경
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET_PROD }}" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_PROD }}" >> $GITHUB_ENV
           echo "ENVIRONMENT=prod" >> $GITHUB_ENV
           echo "FRONTEND_URL=https://fab-link.org" >> $GITHUB_ENV
         else
           echo "🎯 Deploying to DEVELOPMENT environment"
-          echo "S3_BUCKET=fablink-frontend-dev-bucket" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DISTRIBUTION_ID=E0987654321XYZ" >> $GITHUB_ENV  # 실제 dev ID로 변경
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET_STAGING }}" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_STAGING }}" >> $GITHUB_ENV
           echo "ENVIRONMENT=dev" >> $GITHUB_ENV
           echo "FRONTEND_URL=https://dev.fab-link.org" >> $GITHUB_ENV
         fi
