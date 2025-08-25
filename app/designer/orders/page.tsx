@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+// Badge 컴포넌트 타입 충돌로 span 커스텀 스타일 사용
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -32,7 +32,7 @@ import { useAuthContext } from "@/contexts/AuthContext"
 
 
 // 샘플 제작 업체 목록 컴포넌트
-function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () => Promise<void> | void }) {
+function SampleFactoriesList({ order, onRefresh, onFactorySelected }: { order: any; onRefresh?: () => Promise<void> | void; onFactorySelected?: (orderId: string | number) => void }) {
   const [factories, setFactories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -83,6 +83,12 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
     try {
       await manufacturingApi.selectBid(bidId)
       alert('업체를 선정했습니다.')
+      // Optimistic UI: sample 업체 선정(1단계) 완료 즉시 반영 → current_step_index >=2 로컬 반영
+      try {
+        if (onFactorySelected) {
+          onFactorySelected(order.order_id || order.id)
+        }
+      } catch {}
       // 목록 새로고침
       const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
   const bidsData = Array.isArray(response) ? response : []
@@ -137,7 +143,7 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
 
   return (
     <div className="space-y-4">
-      {factories.map((factory) => (
+  {factories.map((factory: any) => (
         <div
           key={factory.id}
           className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50"
@@ -148,7 +154,7 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
                 src={factory.profile_image} 
                 alt={factory.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
+                onError={(e: any) => {
                   e.currentTarget.style.display = 'none'
                   e.currentTarget.nextElementSibling?.classList.remove('hidden')
                 }}
@@ -186,15 +192,13 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
               총액: {factory.totalPrice.toLocaleString()}원
             </div>
             {factory.status === 'pending' && (
-              <Button size="sm" onClick={() => handleSelectFactory(factory.bidId)}>
-                업체 선정
-              </Button>
+              <Button size="sm" onClick={() => handleSelectFactory(factory.bidId)}>업체 선정</Button>
             )}
             {factory.status === 'selected' && (
-              <Badge className="bg-green-600">선정됨</Badge>
+              <span className="inline-flex items-center rounded-full bg-green-600 text-white px-2.5 py-0.5 text-xs font-semibold">선정됨</span>
             )}
             {factory.status === 'rejected' && (
-              <Badge variant="outline">거절됨</Badge>
+              <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">거절됨</span>
             )}
           </div>
         </div>
@@ -204,6 +208,19 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
 }
 
 // 단계별 상세 정보 렌더링 함수
+// 공용 날짜 포맷터 (예: 2025-08-26 14:30)
+const formatDateTime = (value: any): string => {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return String(value)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day} ${hh}:${mm}`
+}
+
 const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: string) => string) => {
   switch (stepId) {
     case 1: // 샘플 제작 업체 선정
@@ -216,7 +233,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
             <div className="mb-4 text-sm text-gray-600">
               주문 코드: #{order.order_id || order.id}
             </div>
-            <SampleFactoriesList order={order} onRefresh={order.onRefresh} />
+            <SampleFactoriesList order={order} onRefresh={order.onRefresh} onFactorySelected={order.onFactorySelected} />
           </CardContent>
         </Card>
       )
@@ -260,9 +277,9 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                       <div className={`w-4 h-4 rounded-full ${getStatusColor(process.status || 'pending')}`} />
                       <span className="flex-1 text-sm">{process.name || '-'}</span>
                       {process.status === 'done' && process.end_date && (
-                        <span className="text-xs text-gray-500">{process.end_date}</span>
+                        <span className="text-xs text-gray-500">{formatDateTime(process.end_date)}</span>
                       )}
-                      {process.status === 'active' && <Badge variant="secondary">진행중</Badge>}
+                      {process.status === 'active' && <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold">진행중</span>}
                     </div>
                   ))}
                 </div>
@@ -312,7 +329,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">상태:</span>
-                        <Badge variant="outline">{fb.status || '-'}</Badge>
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium">{fb.status || '-'}</span>
                       </div>
                       <div className="space-y-2">
                         <Button size="sm" variant="outline" className="w-full bg-transparent">
@@ -357,7 +374,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                 <span>배송 상태: {step3?.delivery_status || '-'}</span>
               </div>
               <div className="flex items-center space-x-2 mt-2">
-                <Badge variant="outline">운송장: {step3?.delivery_code || '-'}</Badge>
+                <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium">운송장: {step3?.delivery_code || '-'}</span>
               </div>
             </div>
           </CardContent>
@@ -405,12 +422,12 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stages.map((p: any, i: number) => (
+        {stages.map((p: any, i: number) => (
                 <div key={i} className="flex items-center space-x-3">
                   <div className={`w-4 h-4 rounded-full ${getStatusColor(p.status || 'pending')}`} />
                   <span className="flex-1 text-sm">{p.name || '-'}</span>
-                  {p.status === 'done' && p.end_date && <span className="text-xs text-gray-500">{p.end_date}</span>}
-                  {p.status === 'active' && <Badge variant="secondary">진행중</Badge>}
+          {p.status === 'done' && p.end_date && <span className="text-xs text-gray-500">{formatDateTime(p.end_date)}</span>}
+                  {p.status === 'active' && <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold">진행중</span>}
                 </div>
               ))}
             </div>
@@ -442,7 +459,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                 <span>배송 상태: {step7?.delivery_status || '-'}</span>
               </div>
               <div className="flex items-center space-x-2 mt-2">
-                <Badge variant="outline">운송장: {step7?.delivery_code || '-'}</Badge>
+                <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium">운송장: {step7?.delivery_code || '-'}</span>
               </div>
             </div>
           </CardContent>
@@ -475,17 +492,21 @@ export default function DesignerOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-  const response = await manufacturingApi.getDesignerOrders()
+  const response = await manufacturingApi.getOrders({ page: 1, page_size: 200 })
   const ordersData = (response as any)?.results ?? (Array.isArray(response) ? response : [])
-      const userOrders = Array.isArray(ordersData) ? ordersData.filter(order => 
-        order.product?.designer === user?.id || order.productInfo?.designer === user?.id
-      ).map(order => ({
-        ...order,
-        currentStep: getOrderCurrentStep(order),
-        // 상세는 backend steps 사용, 리스트 상태는 계산된 timelineSteps 사용
-        timelineSteps: getOrderSteps(order),
-        onRefresh: fetchOrders,
-      })) : []
+      const userOrders = Array.isArray(ordersData) ? ordersData
+        .filter(order => {
+          // API 정규화 결과: designer_id 보유. product/productInfo 미포함.
+          if (typeof order?.designer_id === 'number' && typeof user?.id === 'number') return order.designer_id === user.id
+          return String(order?.designer_id) === String(user?.id)
+        })
+        .map(order => ({
+          ...order,
+          currentStep: getOrderCurrentStep(order),
+          timelineSteps: getOrderSteps(order),
+          onRefresh: fetchOrders,
+          // 업체 선정 시 optimistic 단계 전진 콜백 주입(렌더 단계에서 전달)
+        })) : []
       setOrders(userOrders)
       // 선택된 주문이 있으면 최신 객체로 재매칭
       if (selectedOrder) {
@@ -502,6 +523,40 @@ export default function DesignerOrdersPage() {
       setLoading(false)
     }
   }
+  // Optimistic 단계 전진: 업체 선정 직후 current_step_index < 2 인 경우 2로 올리고 타임라인 재생성
+  const advanceOrderToStep2 = (orderId: string | number) => {
+    setOrders((prev: any[]) => prev.map((o: any) => {
+      const oid = o.order_id || o.id
+      if (String(oid) !== String(orderId)) return o
+      const currentIdx = o.current_step_index || o.currentStep || o.current_step || 1
+      if (Number(currentIdx) >= 2) return o
+      const updated = {
+        ...o,
+        current_step_index: 2,
+      }
+      return {
+        ...updated,
+        currentStep: 2,
+        timelineSteps: getOrderSteps(updated),
+      }
+    }))
+  setSelectedOrder((prev: any) => {
+      if (!prev) return prev
+      const oid = prev.order_id || prev.id
+      if (String(oid) !== String(orderId)) return prev
+      const currentIdx = prev.current_step_index || prev.currentStep || prev.current_step || 1
+      if (Number(currentIdx) >= 2) return prev
+      const updated = { ...prev, current_step_index: 2 }
+      // 단계 전환 시 자동으로 2단계 상세를 열어줌
+      setSelectedStep(2)
+      return {
+        ...updated,
+        currentStep: 2,
+        timelineSteps: getOrderSteps(updated),
+      }
+    })
+  }
+
 
   useEffect(() => {
     if (user) {
@@ -516,7 +571,7 @@ export default function DesignerOrdersPage() {
 
   // Mongo designer_orders.current_step_index 기반 현재 단계 계산(백엔드에서 내려줌)
   const getOrderCurrentStep = (order: any) => {
-    const idx = order.current_step_index || order.currentStep || order.current_step || 1
+  const idx = order.current_step_index || order.currentStep || order.current_step || 1
     const n = Number(idx)
     return Number.isFinite(n) && n > 0 ? Math.min(Math.max(1, n), 7) : 1
   }
@@ -524,14 +579,16 @@ export default function DesignerOrdersPage() {
   // 주문 단계 정보 생성
   const getOrderSteps = (order: any) => {
     const currentStep = getOrderCurrentStep(order)
+    const created = order.order_date || order.created_at || order.createdAt || null
+    const updated = order.last_updated || order.updated_at || order.updatedAt || null
     return [
-      { id: 1, name: "샘플 제작 업체 선정", status: currentStep > 1 ? "done" : currentStep === 1 ? "active" : "pending", completedAt: currentStep > 1 ? order.created_at : null },
-      { id: 2, name: "샘플 생산 현황", status: currentStep > 2 ? "done" : currentStep === 2 ? "active" : "pending", completedAt: currentStep > 2 ? order.updated_at : null },
+      { id: 1, name: "샘플 제작 업체 선정", status: currentStep > 1 ? "done" : currentStep === 1 ? "active" : "pending", completedAt: currentStep > 1 ? created : null },
+      { id: 2, name: "샘플 생산 현황", status: currentStep > 2 ? "done" : currentStep === 2 ? "active" : "pending", completedAt: currentStep > 2 ? updated : null },
       { id: 3, name: "샘플 생산 배송 조회", status: currentStep > 3 ? "done" : currentStep === 3 ? "active" : "pending", completedAt: null },
       { id: 4, name: "샘플 피드백", status: currentStep > 4 ? "done" : currentStep === 4 ? "active" : "pending", completedAt: null },
       { id: 5, name: "본 생산 업체 선정", status: currentStep > 5 ? "done" : currentStep === 5 ? "active" : "pending", completedAt: null },
       { id: 6, name: "본 생산 현황", status: currentStep > 6 ? "done" : currentStep === 6 ? "active" : "pending", completedAt: null },
-      { id: 7, name: "본 생산 배송 조회", status: currentStep >= 7 ? "done" : "pending", completedAt: currentStep >= 7 ? order.updated_at : null },
+      { id: 7, name: "본 생산 배송 조회", status: currentStep >= 7 ? "done" : "pending", completedAt: currentStep >= 7 ? updated : null },
     ]
   }
 
@@ -620,11 +677,11 @@ export default function DesignerOrdersPage() {
                 <CardContent>
                   {orders.length > 0 ? (
                     <div className="space-y-3">
-                      {orders.map((order) => (
+          {orders.map((order: any, idx: number) => (
                         <div
-                          key={order.id}
+                          key={order.order_id || order.id || idx}
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                            selectedOrder?.id === order.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
+            (selectedOrder && ((selectedOrder.order_id||selectedOrder.id)===(order.order_id||order.id))) ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"
                           }`}
                           onClick={() => {
                             setSelectedOrder(order)
@@ -632,14 +689,14 @@ export default function DesignerOrdersPage() {
                           }}
                         >
                           <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium text-sm">{order.product?.name || order.productInfo?.name || '제품명 없음'}</h4>
-                            <Badge variant="outline" className="text-xs">
+                            <h4 className="font-medium text-sm">{order.product_name || order.product?.name || order.productInfo?.name || '제품명 없음'}</h4>
+                            <span className="text-xs inline-flex items-center rounded-full border px-2.5 py-0.5 font-semibold bg-transparent">
                               {order.quantity}개
-                            </Badge>
+                            </span>
                           </div>
                           <p className="text-xs text-gray-600 mb-2">주문코드: {order.order_id || order.id}</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500">{order.created_at || order.createdAt ? new Date(order.created_at || order.createdAt).toLocaleDateString() : '날짜 정보 없음'}</span>
+                            <span className="text-xs text-gray-500">{(order.order_date || order.created_at || order.createdAt) ? new Date(order.order_date || order.created_at || order.createdAt).toLocaleDateString() : '날짜 정보 없음'}</span>
                             <Progress value={(getOrderCurrentStep(order) / 7) * 100} className="w-16 h-2" />
                           </div>
                         </div>
@@ -662,7 +719,7 @@ export default function DesignerOrdersPage() {
                   {/* Order Info */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>{selectedOrder.product?.name || selectedOrder.productInfo?.name || '제품명 없음'}</CardTitle>
+            <CardTitle>{selectedOrder.product_name || selectedOrder.product?.name || selectedOrder.productInfo?.name || '제품명 없음'}</CardTitle>
                       <CardDescription>주문 코드: {selectedOrder.order_id}</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -673,7 +730,7 @@ export default function DesignerOrdersPage() {
                         </div>
                         <div>
                           <span className="text-gray-600">주문일:</span>
-                          <p className="font-medium">{selectedOrder.created_at || selectedOrder.createdAt ? new Date(selectedOrder.created_at || selectedOrder.createdAt).toLocaleDateString() : '날짜 정보 없음'}</p>
+              <p className="font-medium">{(selectedOrder.order_date || selectedOrder.created_at || selectedOrder.createdAt) ? new Date(selectedOrder.order_date || selectedOrder.created_at || selectedOrder.createdAt).toLocaleDateString() : '날짜 정보 없음'}</p>
                         </div>
                         <div>
                           <span className="text-gray-600">진행률:</span>
@@ -722,15 +779,19 @@ export default function DesignerOrdersPage() {
                                 </div>
 
                                 <div className="flex items-center space-x-2">
-                                  {step.status === "active" && <Badge variant="secondary">진행중</Badge>}
-                                  {step.status === "done" && <Badge className="bg-green-600">완료</Badge>}
-                                  {step.status === "pending" && <Badge variant="outline">대기</Badge>}
+                                  {step.status === "active" && <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2.5 py-0.5 text-xs font-semibold">진행중</span>}
+                                  {step.status === "done" && <span className="inline-flex items-center rounded-full bg-green-600 text-white px-2.5 py-0.5 text-xs font-semibold">완료</span>}
+                                  {step.status === "pending" && <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-gray-600">대기</span>}
                                   {isClickable && <Eye className="h-4 w-4 text-gray-400" />}
                                 </div>
                               </div>
 
                               {/* Step Detail */}
-                              {selectedStep === step.id && renderStepDetail(selectedOrder, step.id, getStatusColor)}
+                              {selectedStep === step.id && renderStepDetail(
+                                { ...selectedOrder, onFactorySelected: advanceOrderToStep2 },
+                                step.id,
+                                getStatusColor
+                              )}
 
                               {/* Connector Line */}
                               {index < selectedOrder.timelineSteps.length - 1 && <div className="ml-5 w-0.5 h-4 bg-gray-200" />}

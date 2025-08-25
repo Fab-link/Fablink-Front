@@ -84,176 +84,78 @@ export const manufacturingApi = {
   },
 
   /**
-   * 주문 목록 조회 (공장주용, Django ORM 기반 기존)
+   * 통합 orders 목록 (Mongo) 페이징 조회 (role 기반 필터는 백엔드 처리 가정)
    */
-  getOrders: async () => {
-  const data = await apiClient.get<any>('/manufacturing/factory-orders/')
-  // 백엔드가 { results: [...] } 형태를 반환하므로 배열로 정규화
-  const items = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : [])
-  return items as OrderData[]
-  },
-
-  /**
-   * factory_orders 목록 조회 (Mongo, 페이징)
-   */
-  getFactoryOrdersMongo: async (params?: { page?: number; page_size?: number; phase?: string; status?: string; debug?: boolean | string }) => {
+  getOrders: async (params?: { page?: number; page_size?: number; status?: string; debug?: boolean | string }) => {
     const query: Record<string, string> = {}
     if (params?.page) query.page = String(params.page)
     if (params?.page_size) query.page_size = String(params.page_size)
-    if (params?.phase) query.phase = params.phase
     if (params?.status) query.status = params.status
     if (typeof params?.debug !== 'undefined') {
       const v = String(params.debug).toLowerCase()
-      if (v === '1' || v === 'true' || v === 'yes') query.debug = '1'
+      if (['1','true','yes'].includes(v)) query.debug = '1'
     }
-    const raw = await apiClient.get<any>('/manufacturing/factory-orders-mongo/', query)
-
-<<<<<<< HEAD
-    // 통합 스키마 정규화: snake/camel 여부와 관계없이 동일한 형태로 반환
-  const pickStages = (it: any) => {
-      const steps = Array.isArray(it?.steps) ? it.steps : []
-      // phase 기준으로 생산 현황 스텝 선택: sample -> index 2, main -> index 6
-      const targetIndex = (it?.phase === 'main') ? 6 : 2
-      let step = steps.find((s: any) => Number(s?.index) === targetIndex)
-      if (!step) {
-        // 이름 기반 보조 탐색
-        const targetName = targetIndex === 6 ? '본 생산 현황' : '샘플 생산 현황'
-        step = steps.find((s: any) => (s?.name === targetName))
-      }
-      const stageList = step?.stage ?? step?.stages ?? []
-      if (!Array.isArray(stageList)) return []
-      return stageList.map((s: any) => ({
-        index: s?.index,
-        name: s?.name,
-        status: s?.status,
-        end_date: s?.end_date ?? s?.endDate ?? '',
-      }))
-    }
-
-  const normalizeItem = (it: any) => {
+  const raw = await apiClient.get<any>('/manufacturing/orders-mongo/', query)
+    const normalizeItem = (it: any) => {
       if (!it || typeof it !== 'object') return it
+      const steps = Array.isArray(it.steps) ? it.steps : []
+      // 서버 응답이 productInfo (nested) 형태일 때 내부 필드에서 보조 매핑
+      const productInfo = it.productInfo || it.product_info || {}
       return {
         order_id: it.order_id ?? it.orderId,
-        phase: it.phase,
-        factory_id: it.factory_id ?? it.factoryId,
-        overall_status: it.overall_status ?? it.overallStatus ?? '',
-        due_date: it.due_date ?? it.dueDate ?? null,
-        quantity: it.quantity,
-    // 가격 필드 표준화: work_price로 통일 (과거 unit_price 호환)
-    work_price: it.work_price ?? it.unit_price ?? it.unitPrice ?? null,
-        last_updated: it.last_updated ?? it.lastUpdated,
-        product_id: it.product_id ?? it.productId ?? null,
-        // 생산 단계(단계 목록을 stage 레벨로 평탄화)
-        steps: pickStages(it),
-        product_name: it.product_name ?? it.productName ?? '',
-        designer_id: it.designer_id ?? it.designerId ?? null,
+        product_id: it.product_id ?? it.productId ?? productInfo.id ?? null,
+        product_name: it.product_name ?? it.productName ?? productInfo.name ?? '',
+        quantity: it.quantity ?? productInfo.quantity,
+        designer_id: it.designer_id ?? it.designerId ?? productInfo.designer ?? null,
         designer_name: it.designer_name ?? it.designerName ?? '',
-      }
-=======
-    // 일부 환경에서 camelCase로 응답되는 경우를 대비한 정규화
-  // Normalize whenever results 배열이 존재 (케이스 혼재 시 일관된 형태 보장)
-  const needsNormalize = Array.isArray(raw?.results)
-  const normalizeItem = (it: any) => {
-    if (!it || typeof it !== 'object') return it
-    const steps = Array.isArray(it.steps)
-      ? it.steps.map((s: any) => ({
-          index: s.index,
-          name: s.name,
-          status: s.status,
-          end_date: s.endDate ?? s.end_date ?? '',
-          stage: Array.isArray(s.stage)
-            ? s.stage.map((st: any, i: number) => ({
-                index: st.index ?? i + 1,
-                name: st.name,
-                status: st.status,
-                end_date: st.end_date ?? st.endDate ?? '',
-                delivery_code: st.delivery_code ?? st.deliveryCode,
-              }))
-            : undefined,
-        }))
-      : it.steps
-    return {
-      order_id: it.order_id ?? it.orderId,
-      phase: it.phase,
-      factory_id: it.factory_id ?? it.factoryId,
-      overall_status: it.overall_status ?? it.overallStatus ?? '',
-      due_date: it.due_date ?? it.dueDate ?? null,
-      quantity: it.quantity,
-      work_price: it.work_price ?? it.workPrice ?? null,
-      last_updated: it.last_updated ?? it.lastUpdated,
-      product_id: it.product_id ?? it.productId ?? null,
-      current_step_index: it.current_step_index ?? it.currentStepIndex ?? 1,
-      steps,
-      product_name: it.product_name ?? it.productName ?? '',
-      designer_id: it.designer_id ?? it.designerId ?? null,
-      designer_name: it.designer_name ?? it.designerName ?? '',
->>>>>>> feature/FABLINK-157
-    }
-  }
-
-<<<<<<< HEAD
-    const page_size = raw?.page_size ?? raw?.pageSize
-    const has_next = raw?.has_next ?? raw?.hasNext
-=======
-  if (needsNormalize) {
-      const debug_summary = raw.debug_summary ?? raw.debugSummary
-        ? {
-            ...(raw.debug_summary ?? {}),
-            ...(raw.debugSummary ?? {}),
-            items: Array.isArray(raw.debugSummary?.items)
-              ? raw.debugSummary.items.map((d: any) => ({
-                  order_id: d.order_id ?? d.orderId,
-                  factory_id: d.factory_id ?? d.factoryId,
-                  phase: d.phase,
-                  product_id: d.product_id ?? d.productId,
-                  product_name: d.product_name ?? d.productName,
-                  designer_id: d.designer_id ?? d.designerId,
-                  designer_name: d.designer_name ?? d.designerName,
-                  work_price: d.work_price ?? d.workPrice,
-                  currency: d.currency,
-                  due_date: d.due_date ?? d.dueDate,
-                  quantity: d.quantity,
-                  overall_status: d.overall_status ?? d.overallStatus,
-                  current_step_index: d.current_step_index ?? d.currentStepIndex ?? 1,
-                }))
-              : raw.debug_summary?.items,
-          }
-        : undefined
->>>>>>> feature/FABLINK-157
-
-    // debug_summary 정규화 (있을 때만)
-    const makeDebug = () => {
-      const dbg = raw?.debug_summary ?? raw?.debugSummary
-      if (!dbg) return undefined
-      const srcItems = Array.isArray(dbg.items) ? dbg.items : []
-    return {
-        ...dbg,
-        items: srcItems.map((d: any) => ({
-          order_id: d.order_id ?? d.orderId,
-          factory_id: d.factory_id ?? d.factoryId,
-          phase: d.phase,
-          product_id: d.product_id ?? d.productId,
-          product_name: d.product_name ?? d.productName,
-          designer_id: d.designer_id ?? d.designerId,
-          designer_name: d.designer_name ?? d.designerName,
-      // debug도 work_price로 통일 (과거 unit_price 호환)
-      work_price: d.work_price ?? d.unit_price ?? d.unitPrice,
-          currency: d.currency,
-          due_date: d.due_date ?? d.dueDate,
-          quantity: d.quantity,
-          overall_status: d.overall_status ?? d.overallStatus,
-        })),
+        factory_id: it.factory_id ?? it.factoryId ?? '',
+        factory_name: it.factory_name ?? it.factoryName ?? '',
+        work_price: it.work_price ?? it.unit_price ?? null,
+        current_step_index: it.current_step_index ?? it.currentStepIndex ?? 1,
+        overall_status: it.overall_status ?? it.overallStatus ?? '',
+        phase: it.phase,
+        order_date: it.order_date ?? it.orderDate ?? productInfo.createdAt ?? '',
+        due_date: it.due_date ?? it.dueDate ?? productInfo.dueDate ?? '',
+        last_updated: it.last_updated ?? it.lastUpdated ?? '',
+        steps,
+        // 원본 productInfo 보존 (후속 화면에서 추가 정보 사용 가능)
+        productInfo: productInfo,
       }
     }
-
     return {
       count: raw?.count ?? 0,
       page: raw?.page ?? 1,
-      page_size,
-      has_next: !!has_next,
+      page_size: raw?.page_size ?? 20,
+      has_next: raw?.has_next ?? false,
       results: Array.isArray(raw?.results) ? raw.results.map(normalizeItem) : [],
-      ...(makeDebug() ? { debug_summary: makeDebug() } : {}),
+      debug_summary: raw?.debug_summary || raw?.debugSummary,
     }
+  },
+
+  /**
+   * 공장 견적 요청 목록 (RequestOrder 기반)
+   * 필터링: sample_pending / product_pending 상태만 백엔드에서 반환
+   */
+  getFactoryQuotes: async () => {
+    const raw = await apiClient.get<any>('/manufacturing/factory/quotes/')
+    const list = Array.isArray(raw?.results) ? raw.results : []
+    return list.map((o: any) => ({
+      ...o,
+      orderId: o.order_id ?? o.orderId,
+      requestOrderId: o.request_order_id,
+      status: o.status,
+      quantity: o.quantity,
+      createdAt: o.createdAt,
+      productInfo: o.productInfo || {},
+      customerName: o.customerName,
+      customerContact: o.customerContact,
+      shippingAddress: o.shippingAddress,
+    }))
+  },
+
+  // 현재 factory 사용자의 특정 order 에 대한 입찰 존재 여부
+  hasFactoryBid: async (orderId: string | number) => {
+    return apiClient.get<{has_bid: boolean; bid_id?: number}>(`/manufacturing/bids/has_bid/`, { order_id: String(orderId) })
   },
 
   // Mongo 단일 주문 조회
@@ -273,9 +175,7 @@ export const manufacturingApi = {
    * 디자이너 주문 목록 조회
    * @returns 디자이너 주문 목록
    */
-  getDesignerOrders: async () => {
-    return apiClient.get<OrderData[]>('/manufacturing/designer-orders/');
-  },
+  // getDesignerOrders deprecated: unified getOrders 사용
 
   /**
    * 주문 상세 조회

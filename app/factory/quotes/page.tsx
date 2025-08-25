@@ -30,15 +30,23 @@ export default function FactoryQuotesPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await manufacturingApi.getOrders()
-        console.log('API 응답:', response) // 디버깅용
-  // manufacturingApi.getOrders()는 배열을 반환함
-  const ordersList = Array.isArray(response) ? response : []
-        setOrders(ordersList)
-        setSortedOrders(ordersList)
+        const list = await manufacturingApi.getFactoryQuotes()
+        console.log('getFactoryQuotes 응답:', list)
+        // 초기 bid 상태 확인
+  const results = await Promise.allSettled(list.map((o: any) => manufacturingApi.hasFactoryBid(o.orderId)))
+  const withBid = list.map((o: any, idx: number) => {
+          const r = results[idx]
+          if (r.status === 'fulfilled' && r.value) {
+            const data: any = r.value
+            return { ...o, bidStatus: data.has_bid ? 'submitted' : 'pending', bidId: data.bid_id }
+          }
+          return { ...o, bidStatus: 'error' }
+        })
+        setOrders(withBid)
+        setSortedOrders(withBid)
       } catch (error) {
-        console.error('주문 데이터 로딩 실패:', error)
-        setOrders([]) // 에러 시 빈 배열로 설정
+        console.error('견적 요청 목록 로딩 실패:', error)
+        setOrders([])
         setSortedOrders([])
       } finally {
         setLoading(false)
@@ -50,6 +58,15 @@ export default function FactoryQuotesPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      // RequestOrder 기반 커스텀 상태 (샘플/생산 단계 구분)
+      case 'sample_pending':
+      case 'sample_matched':
+        return <Badge className="bg-purple-100 text-purple-800">샘플</Badge>
+      case 'product_pending':
+      case 'product_matched':
+        return <Badge className="bg-teal-100 text-teal-800">생산</Badge>
+      case 'finished':
+        return <Badge className="bg-green-100 text-green-800">완료</Badge>
       case 'pending':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">검토 중</Badge>
       case 'responded':
@@ -94,8 +111,16 @@ export default function FactoryQuotesPage() {
 
     setSubmitting(true)
     try {
+      // 백엔드가 요구하는 order 기본키: API 응답에 id 대신 order_id / orderId만 있을 수 있으므로 보정
+      // RequestOrder PK 사용 (백엔드 create_factory_bid: order = RequestOrder.id 기대)
+      const pk = selectedOrder.requestOrderId
+      if (!pk) {
+        console.error('선택된 견적 요청에 requestOrderId 가 없습니다.', selectedOrder)
+        alert('견적 요청 식별자 오류로 입찰을 제출할 수 없습니다.')
+        return
+      }
       const bidData = {
-        order: selectedOrder.id,
+        order: pk,
         work_price: parseFloat(quoteForm.workPrice),
         estimated_delivery_days: Math.max(1, deliveryDays),
         notes: quoteForm.notes
@@ -104,10 +129,9 @@ export default function FactoryQuotesPage() {
       await manufacturingApi.createBid(bidData)
       
       // 주문 목록 새로고침
-      const response = await manufacturingApi.getOrders()
-  const ordersList = Array.isArray(response) ? response : []
-      setOrders(ordersList)
-      applySorting(ordersList, sortType)
+  const refreshed = await manufacturingApi.getFactoryQuotes()
+  setOrders(refreshed)
+  applySorting(refreshed, sortType)
       
       alert('입찰이 성공적으로 제출되었습니다.')
       setShowQuoteModal(false)
@@ -139,7 +163,7 @@ export default function FactoryQuotesPage() {
         break
       default:
         // 기본 정렬 (생성일 기준)
-        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
         break
     }
     
@@ -157,6 +181,16 @@ export default function FactoryQuotesPage() {
     }
     return <ArrowUpDown className="h-4 w-4" />
   }
+
+  // 액션 버튼 표시 규칙 헬퍼
+  const hasBidValue = (o: any) => {
+    const v = o.work_price ?? o.workPrice
+    return typeof v === 'number' && v > 0
+  }
+  const canBidStatuses = ['pending', 'sample_pending', 'product_pending']
+  const canEditStatuses = ['responded', 'confirmed', 'sample_pending', 'product_pending', 'sample_matched', 'product_matched']
+  const shouldShowSubmit = (o: any) => canBidStatuses.includes(o.status) && !hasBidValue(o)
+  const shouldShowEdit = (o: any) => canEditStatuses.includes(o.status) && hasBidValue(o)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -225,8 +259,8 @@ export default function FactoryQuotesPage() {
         {/* Orders List */}
         {!loading && Array.isArray(sortedOrders) && sortedOrders.length > 0 && (
           <div className="space-y-6">
-            {sortedOrders.map((order, index) => (
-              <Card key={order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
+            {sortedOrders.map((order: any, index: number) => (
+              <Card key={order.orderId || order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
@@ -241,6 +275,10 @@ export default function FactoryQuotesPage() {
                           </Badge>
                         )}
                         {getStatusBadge(order.status)}
+                        {order.bidStatus === 'submitted' && <Badge className="bg-blue-100 text-blue-800">견적 제출 완료</Badge>}
+                        {order.bidStatus === 'pending' && <Badge variant="outline" className="border-dashed">견적 대기중</Badge>}
+                        {order.bidStatus === 'checking' && <Badge variant="secondary">확인중...</Badge>}
+                        {order.bidStatus === 'error' && <Badge className="bg-red-100 text-red-700">상태 오류</Badge>}
                       </CardTitle>
                       <CardDescription>
                         주문번호: {order.orderId} • 디자이너: {order.productInfo?.designerName || '알 수 없음'}
@@ -249,7 +287,7 @@ export default function FactoryQuotesPage() {
                     <div className="text-right text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
-                        <span>주문일: {new Date(order.createdAt).toLocaleDateString()}</span>
+                        <span>주문일: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -260,7 +298,7 @@ export default function FactoryQuotesPage() {
                       <div>
                         <h4 className="font-medium text-gray-900 mb-2">주문 정보</h4>
                         <div className="space-y-1 text-sm text-gray-600">
-                          <p>수량: {order.quantity}개</p>
+                          <p>수량: {order.quantity ?? order.productInfo?.quantity ?? '-'}개</p>
                           <p>입찰 단가: {(() => { const v = order.work_price ?? order.workPrice; return (v !== undefined && v !== null && v > 0) ? `${v.toLocaleString()}원` : '미입찰'; })()}</p>
                         </div>
                       </div>
@@ -313,30 +351,22 @@ export default function FactoryQuotesPage() {
                         주문일: {new Date(order.createdAt).toLocaleDateString()}
                       </div>
                       <div className="space-x-2">
-                        {order.status === 'pending' && (
-                          <>
-                            <Button size="sm" onClick={() => handleShowQuote(order)}>
-                              <Edit className="h-4 w-4 mr-1" />
-                              입찰 제출
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              상세 보기
-                            </Button>
-                          </>
+                        {shouldShowSubmit(order) && (
+                          <Button size="sm" onClick={() => handleShowQuote(order)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            입찰 제출
+                          </Button>
                         )}
-                        {order.status === 'confirmed' && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => handleShowQuote(order)}>
-                              <Edit className="h-4 w-4 mr-1" />
-                              견적 수정
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              상세 보기
-                            </Button>
-                          </>
+                        {shouldShowEdit(order) && (
+                          <Button variant="outline" size="sm" onClick={() => handleShowQuote(order)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            견적 수정
+                          </Button>
                         )}
+                        <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          상세 보기
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -517,7 +547,7 @@ export default function FactoryQuotesPage() {
                             src={selectedOrder.productInfo.workSheetUrl}
                             className="w-full h-96"
                             title="작업지시서 미리보기"
-                            onError={(e) => {
+                            onError={(e: any) => {
                               console.log('작업지시서 로드 실패:', selectedOrder.productInfo.workSheetUrl)
                               e.currentTarget.style.display = 'none'
                             }}
