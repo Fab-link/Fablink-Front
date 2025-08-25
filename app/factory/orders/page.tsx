@@ -754,7 +754,7 @@ export default function FactoryOrdersPage() {
           <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
             <SheetHeader>
               <SheetTitle>주문 상세</SheetTitle>
-              <SheetDescription>Mongo 기반 주문 문서 정보</SheetDescription>
+              <SheetDescription>주문 문서 상세 정보</SheetDescription>
             </SheetHeader>
             {detailLoading && <div className="text-sm text-gray-500 mt-4">불러오는 중...</div>}
             {!detailLoading && detailDoc && (
