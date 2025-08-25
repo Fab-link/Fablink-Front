@@ -153,7 +153,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center space-x-2">
                 <Shirt className="h-8 w-8 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900">옷 제작 플랫폼</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Fablink</h1>
               </div>
             </div>
 

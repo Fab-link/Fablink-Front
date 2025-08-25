@@ -237,14 +237,14 @@ export default function ManufacturingStep2() {
                 >
                   <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-sm font-medium text-gray-900 mb-1">파일 업로드</p>
-                  <p className="text-xs text-gray-500">png, png, PDF 지원</p>
+                  <p className="text-xs text-gray-500">jpg, jpeg, png, pdf 지원</p>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".png,.jpeg,.png,.pdf"
+                  accept=".png,.jpg,.jpeg,.pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                 />

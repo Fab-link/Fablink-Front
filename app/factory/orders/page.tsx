@@ -8,6 +8,7 @@ import { ArrowLeft, ClipboardList, Package, Truck } from "lucide-react"
 import Link from "next/link"
 import { manufacturingApi } from "@/lib/api/manufacturing"
 
+// 통합 스키마 정규화된 항목 타입 (lib/api/manufacturing.ts의 normalize와 일치)
 type FactoryOrderItem = {
   order_id: string
   phase: string
@@ -15,12 +16,13 @@ type FactoryOrderItem = {
   overall_status: string
   due_date?: string | null
   quantity?: number | null
-  unit_price?: number | null
+  work_price?: number | null
   last_updated: string
   product_id?: string | null
   product_name?: string
   designer_id?: string | null
   designer_name?: string
+  // steps는 통합 스키마의 특정 단계(step.index=2 또는 6)의 stage 배열을 평탄화한 리스트
   steps?: Array<{ index: number; name: string; status?: string; end_date?: string }>
 }
 
@@ -168,9 +170,9 @@ export default function FactoryOrdersPage() {
                     <div>수량: {order.quantity ?? '-'}</div>
                     <div>
                       단가: {(() => {
-                        const up = order.unit_price
-                        if (up === null || up === undefined || up === '') return '-'
-                        const n = typeof up === 'string' ? Number(up) : up
+                        const wp = order.work_price
+                        if (wp === null || wp === undefined) return '-'
+                        const n = typeof wp === 'string' ? Number(wp) : wp
                         return isNaN(n) ? '-' : `${n.toLocaleString()}원`
                       })()}
                     </div>
