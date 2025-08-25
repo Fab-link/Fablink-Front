@@ -15,7 +15,7 @@ export default function FactorySettlementPage() {
       productName: "여성용 캐주얼 블라우스",
       designer: "김디자이너",
       quantity: 500,
-      unitPrice: 22000,
+  workPrice: 22000,
       totalAmount: 11000000,
       status: "completed",
       completedDate: "2024-08-15",
@@ -28,7 +28,7 @@ export default function FactorySettlementPage() {
       productName: "남성용 정장 셔츠",
       designer: "박디자이너",
       quantity: 300,
-      unitPrice: 25000,
+  workPrice: 25000,
       totalAmount: 7500000,
       status: "pending",
       completedDate: "2024-08-18",
@@ -41,7 +41,7 @@ export default function FactorySettlementPage() {
       productName: "아동용 원피스",
       designer: "이디자이너",
       quantity: 200,
-      unitPrice: 18000,
+  workPrice: 18000,
       totalAmount: 3600000,
       status: "processing",
       completedDate: "2024-08-19",
@@ -164,7 +164,7 @@ export default function FactorySettlementPage() {
                       {settlement.totalAmount.toLocaleString()}원
                     </div>
                     <div className="text-sm text-gray-500">
-                      단가: {settlement.unitPrice.toLocaleString()}원
+                      단가: {settlement.workPrice.toLocaleString()}원
                     </div>
                   </div>
                 </div>
@@ -176,7 +176,7 @@ export default function FactorySettlementPage() {
                       <h4 className="font-medium text-gray-900 mb-2">주문 정보</h4>
                       <div className="space-y-1 text-sm text-gray-600">
                         <p>수량: {settlement.quantity}개</p>
-                        <p>단가: {settlement.unitPrice.toLocaleString()}원</p>
+                        <p>단가: {settlement.workPrice.toLocaleString()}원</p>
                         <p>총액: {settlement.totalAmount.toLocaleString()}원</p>
                       </div>
                     </div>

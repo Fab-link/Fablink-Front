@@ -25,13 +25,41 @@ export function useAuth() {
     try {
       // 서버 사이드 렌더링 환경에서는 sessionStorage에 접근할 수 없음
       if (typeof window === 'undefined') {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+    setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
         return;
       }
       
-      const authToken = sessionStorage.getItem('authToken');
-      const refreshToken = sessionStorage.getItem('refreshToken');
-      const userJson = sessionStorage.getItem('userData');
+      // 1차: sessionStorage (탭 생명주기)
+      let authToken = sessionStorage.getItem('authToken');
+      let refreshToken = sessionStorage.getItem('refreshToken');
+      let userJson = sessionStorage.getItem('userData');
+
+      // 새로고침(탭 재시작) 후 sessionStorage 비어있을 수 있으므로 localStorage fallback
+      if (!authToken || !refreshToken) {
+        try {
+          const lsTokensRaw = localStorage.getItem('authTokens');
+          if (lsTokensRaw) {
+            const lsTokens = JSON.parse(lsTokensRaw);
+            if (lsTokens?.access && lsTokens?.refresh) {
+              authToken = authToken || lsTokens.access;
+              refreshToken = refreshToken || lsTokens.refresh;
+              // sessionStorage에 다시 채워 넣어 기존 로직과 동기화
+              sessionStorage.setItem('authToken', lsTokens.access);
+              sessionStorage.setItem('refreshToken', lsTokens.refresh);
+            }
+          }
+          // userData도 복원
+          if (!userJson) {
+            const lsUserRaw = localStorage.getItem('userData');
+            if (lsUserRaw) {
+              userJson = lsUserRaw;
+              sessionStorage.setItem('userData', lsUserRaw);
+            }
+          }
+        } catch (e) {
+          debugLog('localStorage fallback 복원 실패', e);
+        }
+      }
 
       debugLog('세션 스토리지 값:', { authToken: authToken ? '존재함' : '없음', refreshToken: refreshToken ? '존재함' : '없음', userJson: userJson ? '존재함' : '없음' });
 
@@ -73,9 +101,38 @@ export function useAuth() {
             await logout();
           }
         }
+      } else if (authToken && refreshToken && !userJson) {
+        // 토큰은 있으나 userData가 없는 경우(드문 케이스) 백엔드로부터 사용자 정보 재조회
+        try {
+          debugLog('userData 누락 → user_info 재요청');
+          const info = await authApi.getCurrentUser();
+          if (info?.success && info?.user) {
+            const userInfo: User = {
+              id: (info.user as any).id,
+              userId: (info.user as any).userId,
+              name: (info.user as any).name,
+              userType: (info.user as any).userType,
+              contact: (info.user as any).contact || '',
+              address: (info.user as any).address || ''
+            } as User;
+            sessionStorage.setItem('userData', JSON.stringify(userInfo));
+            setAuthState({
+              user: userInfo,
+              tokens: { access: authToken, refresh: refreshToken },
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+            return;
+          }
+        } catch (e) {
+          debugLog('user_info 재조회 실패', e);
+        }
+        // 실패 시 비인증 처리
+  setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
       } else {
         debugLog('필요한 인증 정보가 부족함, 비인증 상태로 설정');
-        setAuthState(prev => ({
+  setAuthState((prev: AuthState) => ({
           ...prev,
           isLoading: false,
         }));
@@ -103,7 +160,7 @@ export function useAuth() {
    */
   const login = async (user_id: string, password: string, user_type?: string) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+  setAuthState((prev: AuthState) => ({ ...prev, isLoading: true, error: null }));
       
       const loginData: LoginRequest = { user_id, password };
       if (user_type) {
@@ -116,9 +173,10 @@ export function useAuth() {
         debugLog('백엔드 응답 전체:', response);
         
         // 사용자 데이터 추출 (camelCase 변환된 필드명 사용)
-        const userData = response.userType === 'designer' ? response.designer : response.factory;
+  const userTypeCamel = (response as any).userType || (response as any).user_type;
+  const userData = userTypeCamel === 'designer' ? (response as any).designer : (response as any).factory;
         
-        debugLog('추출된 사용자 데이터:', { userType: response.userType, userData });
+  debugLog('추출된 사용자 데이터:', { userType: userTypeCamel, userData });
         
         if (!userData) {
           debugLog('사용자 데이터 없음:', { response });
@@ -129,7 +187,7 @@ export function useAuth() {
           id: userData.id,
           userId: userData.userId,
           name: userData.name,
-          userType: response.userType,
+          userType: userTypeCamel,
           contact: userData.contact || '',
           address: userData.address || ''
         };
@@ -174,7 +232,7 @@ export function useAuth() {
         }
       }
       
-      setAuthState(prev => ({
+      setAuthState((prev: AuthState) => ({
         ...prev,
         isLoading: false,
         error: errorMessage,
@@ -188,7 +246,7 @@ export function useAuth() {
    */
   const logout = async () => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true }));
+  setAuthState((prev: AuthState) => ({ ...prev, isLoading: true }));
       
       await authApi.logout();
       if (typeof window !== 'undefined') {
@@ -227,7 +285,7 @@ export function useAuth() {
    * 에러 초기화 함수
    */
   const clearError = () => {
-    setAuthState(prev => ({ ...prev, error: null }));
+  setAuthState((prev: AuthState) => ({ ...prev, error: null }));
   };
 
   /**
@@ -243,10 +301,10 @@ export function useAuth() {
       if (!refreshToken) {
         throw new Error('Refresh token not found');
       }
-      const newTokens = await authApi.refreshToken(refreshToken);
+  const newTokens = await authApi.refreshToken();
       sessionStorage.setItem('authToken', newTokens.access);
       sessionStorage.setItem('refreshToken', newTokens.refresh);
-      setAuthState(prev => ({
+  setAuthState((prev: AuthState) => ({
         ...prev,
         tokens: newTokens,
       }));

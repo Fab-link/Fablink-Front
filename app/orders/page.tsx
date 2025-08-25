@@ -202,7 +202,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex items-center space-x-2 font-medium text-lg">
                           <Won className="h-4 w-4" />
-                          <span>{(bid as any).work_price?.toLocaleString?.() || '-' }원</span>
+                          <span>{bid.work_price?.toLocaleString()}원</span>
                         </div>
                       </div>
                       <Button size="sm" className="bg-black text-white hover:bg-gray-800">

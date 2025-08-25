@@ -21,7 +21,7 @@ export default function FactoryQuotesPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
   const [quoteForm, setQuoteForm] = useState({
-    unitPrice: '',
+    workPrice: '',
     deliveryDate: '',
     notes: ''
   })
@@ -76,7 +76,7 @@ export default function FactoryQuotesPage() {
   const handleShowQuote = (order: any) => {
     setSelectedOrder(order)
     setQuoteForm({
-      unitPrice: order.unitPrice?.toString() || '',
+      workPrice: order.workPrice?.toString() || '',
       deliveryDate: '',
       notes: ''
     })
@@ -84,7 +84,7 @@ export default function FactoryQuotesPage() {
   }
 
   const handleSubmitQuote = async () => {
-    if (!selectedOrder || !quoteForm.unitPrice) {
+    if (!selectedOrder || !quoteForm.workPrice) {
       alert('단가를 입력해주세요.')
       return
     }
@@ -96,8 +96,7 @@ export default function FactoryQuotesPage() {
     try {
       const bidData = {
         order: selectedOrder.id,
-  // 백엔드 통합 스키마는 work_price를 사용
-  work_price: parseFloat(quoteForm.unitPrice),
+        work_price: parseFloat(quoteForm.workPrice),
         estimated_delivery_days: Math.max(1, deliveryDays),
         notes: quoteForm.notes
       }
@@ -262,7 +261,7 @@ export default function FactoryQuotesPage() {
                         <h4 className="font-medium text-gray-900 mb-2">주문 정보</h4>
                         <div className="space-y-1 text-sm text-gray-600">
                           <p>수량: {order.quantity}개</p>
-                          <p>입찰 단가: {order.unitPrice !== undefined && order.unitPrice > 0 ? `${order.unitPrice.toLocaleString()}원` : '미입찰'}</p>
+                          <p>입찰 단가: {(() => { const v = order.work_price ?? order.workPrice; return (v !== undefined && v !== null && v > 0) ? `${v.toLocaleString()}원` : '미입찰'; })()}</p>
                         </div>
                       </div>
                       <div>
@@ -597,13 +596,13 @@ export default function FactoryQuotesPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="unitPrice">단가 (원) *</Label>
+                      <Label htmlFor="workPrice">단가 (원) *</Label>
                       <Input
-                        id="unitPrice"
+                        id="workPrice"
                         type="number"
                         placeholder="15000"
-                        value={quoteForm.unitPrice}
-                        onChange={(e) => setQuoteForm({...quoteForm, unitPrice: e.target.value})}
+                        value={quoteForm.workPrice}
+                        onChange={(e) => setQuoteForm({...quoteForm, workPrice: e.target.value})}
                         required
                       />
                     </div>
@@ -619,16 +618,16 @@ export default function FactoryQuotesPage() {
                   </div>
 
                   {/* 총액 계산 표시 */}
-                  {quoteForm.unitPrice && (
+                  {quoteForm.workPrice && (
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-blue-900">예상 총액:</span>
                         <span className="text-lg font-bold text-blue-900">
-                          {(parseFloat(quoteForm.unitPrice) * selectedOrder.quantity).toLocaleString()}원
+                          {(parseFloat(quoteForm.workPrice) * selectedOrder.quantity).toLocaleString()}원
                         </span>
                       </div>
                       <div className="text-sm text-blue-700 mt-1">
-                        단가 {parseFloat(quoteForm.unitPrice).toLocaleString()}원 × {selectedOrder.quantity}개
+                        단가 {parseFloat(quoteForm.workPrice).toLocaleString()}원 × {selectedOrder.quantity}개
                       </div>
                     </div>
                   )}
@@ -656,7 +655,7 @@ export default function FactoryQuotesPage() {
                   </Button>
                   <Button 
                     onClick={handleSubmitQuote}
-                    disabled={!quoteForm.unitPrice || submitting}
+                    disabled={!quoteForm.workPrice || submitting}
                   >
                     {submitting ? (
                       <>
