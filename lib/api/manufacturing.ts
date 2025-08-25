@@ -95,7 +95,7 @@ export const manufacturingApi = {
       const v = String(params.debug).toLowerCase()
       if (['1','true','yes'].includes(v)) query.debug = '1'
     }
-  const raw = await apiClient.get<any>('/manufacturing/orders/', query)
+  const raw = await apiClient.get<any>('/manufacturing/orders-mongo/', query)
     const normalizeItem = (it: any) => {
       if (!it || typeof it !== 'object') return it
       const steps = Array.isArray(it.steps) ? it.steps : []
@@ -160,13 +160,13 @@ export const manufacturingApi = {
 
   // Mongo 단일 주문 조회
   getMongoOrder: async (orderId: string) => {
-  const raw = await apiClient.get<any>(`/manufacturing/orders/${orderId}/`)
+  const raw = await apiClient.get<any>(`/manufacturing/orders-mongo/${orderId}/`)
   return normalizeMongoOrder(raw, orderId)
   },
 
   // Mongo 진행 단계 완료 업데이트
   updateMongoOrderProgress: async (orderId: string, completeStepIndex: number) => {
-  const raw = await apiClient.patch<any>(`/manufacturing/orders/${orderId}/progress/`, { complete_step_index: completeStepIndex })
+  const raw = await apiClient.patch<any>(`/manufacturing/orders-mongo/${orderId}/progress/`, { complete_step_index: completeStepIndex })
   return normalizeMongoOrder(raw, orderId)
   },
   // stage 완료는 page.tsx 에서 fetch 직접 호출 (PATCH { complete_step_index, complete_stage_index })
