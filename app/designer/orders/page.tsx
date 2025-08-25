@@ -32,7 +32,7 @@ import { useAuthContext } from "@/contexts/AuthContext"
 
 
 // 샘플 제작 업체 목록 컴포넌트
-function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () => Promise<void> | void }) {
+function SampleFactoriesList({ order, onRefresh, onFactorySelected }: { order: any; onRefresh?: () => Promise<void> | void; onFactorySelected?: (orderId: string | number) => void }) {
   const [factories, setFactories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -83,6 +83,12 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
     try {
       await manufacturingApi.selectBid(bidId)
       alert('업체를 선정했습니다.')
+      // Optimistic UI: sample 업체 선정(1단계) 완료 즉시 반영 → current_step_index >=2 로컬 반영
+      try {
+        if (onFactorySelected) {
+          onFactorySelected(order.order_id || order.id)
+        }
+      } catch {}
       // 목록 새로고침
       const response = await manufacturingApi.getBidsByOrder(order.order_id || order.id)
   const bidsData = Array.isArray(response) ? response : []
@@ -148,7 +154,7 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
                 src={factory.profile_image} 
                 alt={factory.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
+                onError={(e: any) => {
                   e.currentTarget.style.display = 'none'
                   e.currentTarget.nextElementSibling?.classList.remove('hidden')
                 }}
@@ -202,6 +208,19 @@ function SampleFactoriesList({ order, onRefresh }: { order: any; onRefresh?: () 
 }
 
 // 단계별 상세 정보 렌더링 함수
+// 공용 날짜 포맷터 (예: 2025-08-26 14:30)
+const formatDateTime = (value: any): string => {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return String(value)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day} ${hh}:${mm}`
+}
+
 const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: string) => string) => {
   switch (stepId) {
     case 1: // 샘플 제작 업체 선정
@@ -214,7 +233,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
             <div className="mb-4 text-sm text-gray-600">
               주문 코드: #{order.order_id || order.id}
             </div>
-            <SampleFactoriesList order={order} onRefresh={order.onRefresh} />
+            <SampleFactoriesList order={order} onRefresh={order.onRefresh} onFactorySelected={order.onFactorySelected} />
           </CardContent>
         </Card>
       )
@@ -258,7 +277,7 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
                       <div className={`w-4 h-4 rounded-full ${getStatusColor(process.status || 'pending')}`} />
                       <span className="flex-1 text-sm">{process.name || '-'}</span>
                       {process.status === 'done' && process.end_date && (
-                        <span className="text-xs text-gray-500">{process.end_date}</span>
+                        <span className="text-xs text-gray-500">{formatDateTime(process.end_date)}</span>
                       )}
                       {process.status === 'active' && <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold">진행중</span>}
                     </div>
@@ -403,11 +422,11 @@ const renderStepDetail = (order: any, stepId: number, getStatusColor: (status: s
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stages.map((p: any, i: number) => (
+        {stages.map((p: any, i: number) => (
                 <div key={i} className="flex items-center space-x-3">
                   <div className={`w-4 h-4 rounded-full ${getStatusColor(p.status || 'pending')}`} />
                   <span className="flex-1 text-sm">{p.name || '-'}</span>
-                  {p.status === 'done' && p.end_date && <span className="text-xs text-gray-500">{p.end_date}</span>}
+          {p.status === 'done' && p.end_date && <span className="text-xs text-gray-500">{formatDateTime(p.end_date)}</span>}
                   {p.status === 'active' && <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-2 py-0.5 text-[10px] font-semibold">진행중</span>}
                 </div>
               ))}
@@ -486,6 +505,7 @@ export default function DesignerOrdersPage() {
           currentStep: getOrderCurrentStep(order),
           timelineSteps: getOrderSteps(order),
           onRefresh: fetchOrders,
+          // 업체 선정 시 optimistic 단계 전진 콜백 주입(렌더 단계에서 전달)
         })) : []
       setOrders(userOrders)
       // 선택된 주문이 있으면 최신 객체로 재매칭
@@ -503,6 +523,40 @@ export default function DesignerOrdersPage() {
       setLoading(false)
     }
   }
+  // Optimistic 단계 전진: 업체 선정 직후 current_step_index < 2 인 경우 2로 올리고 타임라인 재생성
+  const advanceOrderToStep2 = (orderId: string | number) => {
+    setOrders((prev: any[]) => prev.map((o: any) => {
+      const oid = o.order_id || o.id
+      if (String(oid) !== String(orderId)) return o
+      const currentIdx = o.current_step_index || o.currentStep || o.current_step || 1
+      if (Number(currentIdx) >= 2) return o
+      const updated = {
+        ...o,
+        current_step_index: 2,
+      }
+      return {
+        ...updated,
+        currentStep: 2,
+        timelineSteps: getOrderSteps(updated),
+      }
+    }))
+  setSelectedOrder((prev: any) => {
+      if (!prev) return prev
+      const oid = prev.order_id || prev.id
+      if (String(oid) !== String(orderId)) return prev
+      const currentIdx = prev.current_step_index || prev.currentStep || prev.current_step || 1
+      if (Number(currentIdx) >= 2) return prev
+      const updated = { ...prev, current_step_index: 2 }
+      // 단계 전환 시 자동으로 2단계 상세를 열어줌
+      setSelectedStep(2)
+      return {
+        ...updated,
+        currentStep: 2,
+        timelineSteps: getOrderSteps(updated),
+      }
+    })
+  }
+
 
   useEffect(() => {
     if (user) {
@@ -733,7 +787,11 @@ export default function DesignerOrdersPage() {
                               </div>
 
                               {/* Step Detail */}
-                              {selectedStep === step.id && renderStepDetail(selectedOrder, step.id, getStatusColor)}
+                              {selectedStep === step.id && renderStepDetail(
+                                { ...selectedOrder, onFactorySelected: advanceOrderToStep2 },
+                                step.id,
+                                getStatusColor
+                              )}
 
                               {/* Connector Line */}
                               {index < selectedOrder.timelineSteps.length - 1 && <div className="ml-5 w-0.5 h-4 bg-gray-200" />}
