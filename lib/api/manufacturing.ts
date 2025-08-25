@@ -132,6 +132,11 @@ export const manufacturingApi = {
     }
   },
 
+  // 현재 factory 사용자의 특정 order 에 대한 입찰 존재 여부
+  hasFactoryBid: async (orderId: string | number) => {
+    return apiClient.get<{has_bid: boolean; bid_id?: number}>(`/manufacturing/bids/has_bid/`, { order_id: String(orderId) })
+  },
+
   // Mongo 단일 주문 조회
   getMongoOrder: async (orderId: string) => {
   const raw = await apiClient.get<any>(`/manufacturing/orders/${orderId}/`)

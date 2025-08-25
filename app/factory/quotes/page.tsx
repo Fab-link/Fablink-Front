@@ -48,11 +48,27 @@ export default function FactoryQuotesPage() {
             customerContact: productInfo.designer_contact || productInfo.designerContact || '',
             shippingAddress: productInfo.designer_address || productInfo.designerAddress || '',
             productInfo,
+            bidStatus: 'checking',
           }
         })
         console.log('normalized:', normalized)
         setOrders(normalized)
         setSortedOrders(normalized)
+        try {
+          const results = await Promise.allSettled(normalized.map(o => manufacturingApi.hasFactoryBid(o.orderId)))
+          const withBid = normalized.map((o, idx) => {
+            const r = results[idx]
+            if (r.status === 'fulfilled' && r.value) {
+              const data: any = r.value
+              return { ...o, bidStatus: data.has_bid ? 'submitted' : 'pending', bidId: data.bid_id }
+            }
+            return { ...o, bidStatus: 'error' }
+          })
+          setOrders(withBid)
+          setSortedOrders(withBid)
+        } catch (e) {
+          console.error('입찰 상태 조회 실패', e)
+        }
       } catch (error) {
         console.error('주문 데이터 로딩 실패:', error)
         setOrders([]) // 에러 시 빈 배열로 설정
@@ -120,8 +136,15 @@ export default function FactoryQuotesPage() {
 
     setSubmitting(true)
     try {
+      // 백엔드가 요구하는 order 기본키: API 응답에 id 대신 order_id / orderId만 있을 수 있으므로 보정
+      const pk = selectedOrder.orderId || selectedOrder.order_id || selectedOrder.id
+      if (!pk) {
+        console.error('선택된 주문 객체에 기본키(orderId/id)가 없습니다.', selectedOrder)
+        alert('주문 식별자 로딩 오류로 입찰을 제출할 수 없습니다. 새로고침 후 다시 시도해주세요.')
+        return
+      }
       const bidData = {
-        order: selectedOrder.id,
+        order: pk,
         work_price: parseFloat(quoteForm.workPrice),
         estimated_delivery_days: Math.max(1, deliveryDays),
         notes: quoteForm.notes
@@ -197,6 +220,16 @@ export default function FactoryQuotesPage() {
     }
     return <ArrowUpDown className="h-4 w-4" />
   }
+
+  // 액션 버튼 표시 규칙 헬퍼
+  const hasBidValue = (o: any) => {
+    const v = o.work_price ?? o.workPrice
+    return typeof v === 'number' && v > 0
+  }
+  const canBidStatuses = ['pending', 'sample_pending', 'product_pending']
+  const canEditStatuses = ['responded', 'confirmed', 'sample_pending', 'product_pending', 'sample_matched', 'product_matched']
+  const shouldShowSubmit = (o: any) => canBidStatuses.includes(o.status) && !hasBidValue(o)
+  const shouldShowEdit = (o: any) => canEditStatuses.includes(o.status) && hasBidValue(o)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -281,6 +314,10 @@ export default function FactoryQuotesPage() {
                           </Badge>
                         )}
                         {getStatusBadge(order.status)}
+                        {order.bidStatus === 'submitted' && <Badge className="bg-blue-100 text-blue-800">견적 제출 완료</Badge>}
+                        {order.bidStatus === 'pending' && <Badge variant="outline" className="border-dashed">견적 대기중</Badge>}
+                        {order.bidStatus === 'checking' && <Badge variant="secondary">확인중...</Badge>}
+                        {order.bidStatus === 'error' && <Badge className="bg-red-100 text-red-700">상태 오류</Badge>}
                       </CardTitle>
                       <CardDescription>
                         주문번호: {order.orderId} • 디자이너: {order.productInfo?.designerName || '알 수 없음'}
@@ -353,30 +390,22 @@ export default function FactoryQuotesPage() {
                         주문일: {new Date(order.createdAt).toLocaleDateString()}
                       </div>
                       <div className="space-x-2">
-                        {order.status === 'pending' && (
-                          <>
-                            <Button size="sm" onClick={() => handleShowQuote(order)}>
-                              <Edit className="h-4 w-4 mr-1" />
-                              입찰 제출
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              상세 보기
-                            </Button>
-                          </>
+                        {shouldShowSubmit(order) && (
+                          <Button size="sm" onClick={() => handleShowQuote(order)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            입찰 제출
+                          </Button>
                         )}
-                        {order.status === 'confirmed' && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => handleShowQuote(order)}>
-                              <Edit className="h-4 w-4 mr-1" />
-                              견적 수정
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              상세 보기
-                            </Button>
-                          </>
+                        {shouldShowEdit(order) && (
+                          <Button variant="outline" size="sm" onClick={() => handleShowQuote(order)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            견적 수정
+                          </Button>
                         )}
+                        <Button variant="outline" size="sm" onClick={() => handleShowDetail(order)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          상세 보기
+                        </Button>
                       </div>
                     </div>
                   </div>
