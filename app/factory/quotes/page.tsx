@@ -30,48 +30,23 @@ export default function FactoryQuotesPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await manufacturingApi.getOrders({ page: 1, page_size: 200 })
-        console.log('getOrders 응답 객체:', response)
-        const rawList = Array.isArray(response) ? response : Array.isArray((response as any)?.results) ? (response as any).results : []
-        console.log('rawList 길이:', rawList.length, rawList)
-        // status 가 내려오지 않는 현 DB 응답을 감안해 기본값 sample_pending 부여
-        const normalized = rawList.map((o: any) => {
-          const productInfo = o.productInfo || {}
-          return {
-            ...o,
-            orderId: o.order_id || o.orderId || o.id,
-            quantity: o.quantity ?? productInfo.quantity,
-            createdAt: o.created_at || o.createdAt || o.order_date || o.orderDate || productInfo.createdAt || new Date().toISOString(),
-            status: o.status || o.request_status || o.requestStatus || 'sample_pending',
-            // 디자이너(=고객) 정보 매핑 (백엔드 ProductListSerializer 확장 필드 사용)
-            customerName: productInfo.designer_name || productInfo.designerName || '',
-            customerContact: productInfo.designer_contact || productInfo.designerContact || '',
-            shippingAddress: productInfo.designer_address || productInfo.designerAddress || '',
-            productInfo,
-            bidStatus: 'checking',
+        const list = await manufacturingApi.getFactoryQuotes()
+        console.log('getFactoryQuotes 응답:', list)
+        // 초기 bid 상태 확인
+  const results = await Promise.allSettled(list.map((o: any) => manufacturingApi.hasFactoryBid(o.orderId)))
+  const withBid = list.map((o: any, idx: number) => {
+          const r = results[idx]
+          if (r.status === 'fulfilled' && r.value) {
+            const data: any = r.value
+            return { ...o, bidStatus: data.has_bid ? 'submitted' : 'pending', bidId: data.bid_id }
           }
+          return { ...o, bidStatus: 'error' }
         })
-        console.log('normalized:', normalized)
-        setOrders(normalized)
-        setSortedOrders(normalized)
-        try {
-          const results = await Promise.allSettled(normalized.map(o => manufacturingApi.hasFactoryBid(o.orderId)))
-          const withBid = normalized.map((o, idx) => {
-            const r = results[idx]
-            if (r.status === 'fulfilled' && r.value) {
-              const data: any = r.value
-              return { ...o, bidStatus: data.has_bid ? 'submitted' : 'pending', bidId: data.bid_id }
-            }
-            return { ...o, bidStatus: 'error' }
-          })
-          setOrders(withBid)
-          setSortedOrders(withBid)
-        } catch (e) {
-          console.error('입찰 상태 조회 실패', e)
-        }
+        setOrders(withBid)
+        setSortedOrders(withBid)
       } catch (error) {
-        console.error('주문 데이터 로딩 실패:', error)
-        setOrders([]) // 에러 시 빈 배열로 설정
+        console.error('견적 요청 목록 로딩 실패:', error)
+        setOrders([])
         setSortedOrders([])
       } finally {
         setLoading(false)
@@ -137,10 +112,11 @@ export default function FactoryQuotesPage() {
     setSubmitting(true)
     try {
       // 백엔드가 요구하는 order 기본키: API 응답에 id 대신 order_id / orderId만 있을 수 있으므로 보정
-      const pk = selectedOrder.orderId || selectedOrder.order_id || selectedOrder.id
+      // RequestOrder PK 사용 (백엔드 create_factory_bid: order = RequestOrder.id 기대)
+      const pk = selectedOrder.requestOrderId
       if (!pk) {
-        console.error('선택된 주문 객체에 기본키(orderId/id)가 없습니다.', selectedOrder)
-        alert('주문 식별자 로딩 오류로 입찰을 제출할 수 없습니다. 새로고침 후 다시 시도해주세요.')
+        console.error('선택된 견적 요청에 requestOrderId 가 없습니다.', selectedOrder)
+        alert('견적 요청 식별자 오류로 입찰을 제출할 수 없습니다.')
         return
       }
       const bidData = {
@@ -153,24 +129,9 @@ export default function FactoryQuotesPage() {
       await manufacturingApi.createBid(bidData)
       
       // 주문 목록 새로고침
-      const response = await manufacturingApi.getOrders({ page: 1, page_size: 200 })
-      const rawList = Array.isArray(response) ? response : Array.isArray((response as any)?.results) ? (response as any).results : []
-      const normalized = rawList.map((o: any) => {
-        const productInfo = o.productInfo || {}
-        return {
-          ...o,
-          orderId: o.order_id || o.orderId || o.id,
-          quantity: o.quantity ?? productInfo.quantity,
-          createdAt: o.created_at || o.createdAt || o.order_date || o.orderDate || productInfo.createdAt || new Date().toISOString(),
-          status: o.status || o.request_status || o.requestStatus || 'sample_pending',
-          customerName: productInfo.designer_name || productInfo.designerName || '',
-          customerContact: productInfo.designer_contact || productInfo.designerContact || '',
-          shippingAddress: productInfo.designer_address || productInfo.designerAddress || '',
-          productInfo,
-        }
-      })
-      setOrders(normalized)
-      applySorting(normalized, sortType)
+  const refreshed = await manufacturingApi.getFactoryQuotes()
+  setOrders(refreshed)
+  applySorting(refreshed, sortType)
       
       alert('입찰이 성공적으로 제출되었습니다.')
       setShowQuoteModal(false)
@@ -298,7 +259,7 @@ export default function FactoryQuotesPage() {
         {/* Orders List */}
         {!loading && Array.isArray(sortedOrders) && sortedOrders.length > 0 && (
           <div className="space-y-6">
-            {sortedOrders.map((order, index) => (
+            {sortedOrders.map((order: any, index: number) => (
               <Card key={order.orderId || order.id || `order-${index}`} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -586,7 +547,7 @@ export default function FactoryQuotesPage() {
                             src={selectedOrder.productInfo.workSheetUrl}
                             className="w-full h-96"
                             title="작업지시서 미리보기"
-                            onError={(e) => {
+                            onError={(e: any) => {
                               console.log('작업지시서 로드 실패:', selectedOrder.productInfo.workSheetUrl)
                               e.currentTarget.style.display = 'none'
                             }}

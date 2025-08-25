@@ -132,6 +132,27 @@ export const manufacturingApi = {
     }
   },
 
+  /**
+   * 공장 견적 요청 목록 (RequestOrder 기반)
+   * 필터링: sample_pending / product_pending 상태만 백엔드에서 반환
+   */
+  getFactoryQuotes: async () => {
+    const raw = await apiClient.get<any>('/manufacturing/factory/quotes/')
+    const list = Array.isArray(raw?.results) ? raw.results : []
+    return list.map((o: any) => ({
+      ...o,
+      orderId: o.order_id ?? o.orderId,
+      requestOrderId: o.request_order_id,
+      status: o.status,
+      quantity: o.quantity,
+      createdAt: o.createdAt,
+      productInfo: o.productInfo || {},
+      customerName: o.customerName,
+      customerContact: o.customerContact,
+      shippingAddress: o.shippingAddress,
+    }))
+  },
+
   // 현재 factory 사용자의 특정 order 에 대한 입찰 존재 여부
   hasFactoryBid: async (orderId: string | number) => {
     return apiClient.get<{has_bid: boolean; bid_id?: number}>(`/manufacturing/bids/has_bid/`, { order_id: String(orderId) })
