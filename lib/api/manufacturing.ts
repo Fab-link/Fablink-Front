@@ -17,7 +17,7 @@ export interface OrderData {
   id?: number;
   product: number;
   quantity: number;
-  unit_price?: number;
+  work_price?: number; // (was unit_price)
   customer_name?: string;
   customer_contact?: string;
   shipping_address?: string;
@@ -32,7 +32,7 @@ export interface FactoryBidData {
   order: number;
   factory?: number;
   factory_info?: any;
-  unit_price: number;
+  work_price: number; // (was unit_price)
   estimated_delivery_days: number;
   notes?: string;
   status?: 'pending' | 'selected' | 'rejected';
@@ -106,35 +106,46 @@ export const manufacturingApi = {
     const raw = await apiClient.get<any>('/manufacturing/factory-orders-mongo/', query)
 
     // 일부 환경에서 camelCase로 응답되는 경우를 대비한 정규화
-    const hasCamelTop = typeof raw?.pageSize !== 'undefined' || typeof raw?.hasNext !== 'undefined'
-    const normalizeItem = (it: any) => {
-      if (!it || typeof it !== 'object') return it
-      const steps = Array.isArray(it.steps)
-        ? it.steps.map((s: any) => ({
-            index: s.index,
-            name: s.name,
-            status: s.status,
-            end_date: s.endDate ?? s.end_date ?? '',
-          }))
-        : it.steps
-      return {
-        order_id: it.order_id ?? it.orderId,
-        phase: it.phase,
-        factory_id: it.factory_id ?? it.factoryId,
-        overall_status: it.overall_status ?? it.overallStatus ?? '',
-        due_date: it.due_date ?? it.dueDate ?? null,
-        quantity: it.quantity,
-        unit_price: it.unit_price ?? it.unitPrice ?? null,
-        last_updated: it.last_updated ?? it.lastUpdated,
-        product_id: it.product_id ?? it.productId ?? null,
-        steps,
-        product_name: it.product_name ?? it.productName ?? '',
-        designer_id: it.designer_id ?? it.designerId ?? null,
-        designer_name: it.designer_name ?? it.designerName ?? '',
-      }
+  // Normalize whenever results 배열이 존재 (케이스 혼재 시 일관된 형태 보장)
+  const needsNormalize = Array.isArray(raw?.results)
+  const normalizeItem = (it: any) => {
+    if (!it || typeof it !== 'object') return it
+    const steps = Array.isArray(it.steps)
+      ? it.steps.map((s: any) => ({
+          index: s.index,
+          name: s.name,
+          status: s.status,
+          end_date: s.endDate ?? s.end_date ?? '',
+          stage: Array.isArray(s.stage)
+            ? s.stage.map((st: any, i: number) => ({
+                index: st.index ?? i + 1,
+                name: st.name,
+                status: st.status,
+                end_date: st.end_date ?? st.endDate ?? '',
+                delivery_code: st.delivery_code ?? st.deliveryCode,
+              }))
+            : undefined,
+        }))
+      : it.steps
+    return {
+      order_id: it.order_id ?? it.orderId,
+      phase: it.phase,
+      factory_id: it.factory_id ?? it.factoryId,
+      overall_status: it.overall_status ?? it.overallStatus ?? '',
+      due_date: it.due_date ?? it.dueDate ?? null,
+      quantity: it.quantity,
+      work_price: it.work_price ?? it.workPrice ?? null,
+      last_updated: it.last_updated ?? it.lastUpdated,
+      product_id: it.product_id ?? it.productId ?? null,
+      current_step_index: it.current_step_index ?? it.currentStepIndex ?? 1,
+      steps,
+      product_name: it.product_name ?? it.productName ?? '',
+      designer_id: it.designer_id ?? it.designerId ?? null,
+      designer_name: it.designer_name ?? it.designerName ?? '',
     }
+  }
 
-    if (hasCamelTop) {
+  if (needsNormalize) {
       const debug_summary = raw.debug_summary ?? raw.debugSummary
         ? {
             ...(raw.debug_summary ?? {}),
@@ -148,11 +159,12 @@ export const manufacturingApi = {
                   product_name: d.product_name ?? d.productName,
                   designer_id: d.designer_id ?? d.designerId,
                   designer_name: d.designer_name ?? d.designerName,
-                  unit_price: d.unit_price ?? d.unitPrice,
+                  work_price: d.work_price ?? d.workPrice,
                   currency: d.currency,
                   due_date: d.due_date ?? d.dueDate,
                   quantity: d.quantity,
                   overall_status: d.overall_status ?? d.overallStatus,
+                  current_step_index: d.current_step_index ?? d.currentStepIndex ?? 1,
                 }))
               : raw.debug_summary?.items,
           }
@@ -171,6 +183,19 @@ export const manufacturingApi = {
     // 이미 snake_case면 그대로 반환
     return raw
   },
+
+  // Mongo 단일 주문 조회
+  getMongoOrder: async (orderId: string) => {
+  const raw = await apiClient.get<any>(`/manufacturing/orders-mongo/${orderId}/`)
+  return normalizeMongoOrder(raw, orderId)
+  },
+
+  // Mongo 진행 단계 완료 업데이트
+  updateMongoOrderProgress: async (orderId: string, completeStepIndex: number) => {
+  const raw = await apiClient.patch<any>(`/manufacturing/orders-mongo/${orderId}/progress/`, { complete_step_index: completeStepIndex })
+  return normalizeMongoOrder(raw, orderId)
+  },
+  // stage 완료는 page.tsx 에서 fetch 직접 호출 (PATCH { complete_step_index, complete_stage_index })
 
   /**
    * 디자이너 주문 목록 조회
@@ -240,3 +265,43 @@ export const manufacturingApi = {
 export const orderApi = {
   ...manufacturingApi
 };
+
+// 단일 Mongo 주문 응답 정규화 (order_id 누락 대비)
+function normalizeMongoOrder(raw: any, fallbackOrderId?: string) {
+  if (!raw || typeof raw !== 'object') return raw
+  const order_id = raw.order_id ?? raw.orderId ?? fallbackOrderId
+  const steps = Array.isArray(raw.steps)
+    ? raw.steps.map((s: any) => ({
+        index: s.index,
+        name: s.name,
+        status: s.status,
+        end_date: s.end_date ?? s.endDate ?? '',
+        stage: Array.isArray(s.stage)
+          ? s.stage.map((st: any, i: number) => ({
+              index: st.index ?? i + 1,
+              name: st.name,
+              status: st.status,
+              end_date: st.end_date ?? st.endDate ?? '',
+              delivery_code: st.delivery_code ?? st.deliveryCode,
+            }))
+          : undefined,
+      }))
+    : raw.steps
+  return {
+    ...raw,
+    order_id,
+    phase: raw.phase,
+    factory_id: raw.factory_id ?? raw.factoryId,
+    overall_status: raw.overall_status ?? raw.overallStatus,
+    due_date: raw.due_date ?? raw.dueDate,
+    quantity: raw.quantity,
+    work_price: raw.work_price ?? raw.workPrice,
+    last_updated: raw.last_updated ?? raw.lastUpdated,
+    product_id: raw.product_id ?? raw.productId,
+    product_name: raw.product_name ?? raw.productName,
+    designer_id: raw.designer_id ?? raw.designerId,
+    designer_name: raw.designer_name ?? raw.designerName,
+    current_step_index: raw.current_step_index ?? raw.currentStepIndex ?? 1,
+    steps,
+  }
+}
