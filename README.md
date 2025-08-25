@@ -11,121 +11,7 @@
 
 ## 🚀 설치 가이드
 
-### 1. Node.js 설치
-
-#### Ubuntu/Debian 계열
-
-**방법 1: NodeSource 저장소 사용 (권장)**
-```bash
-# NodeSource GPG 키 및 저장소 추가
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-
-# Node.js 설치
-sudo apt-get install -y nodejs
-
-# 설치 확인
-node --version    # v20.x.x 이상이어야 함
-npm --version     # 자동으로 설치됨
-```
-
-**방법 2: Snap 패키지 사용**
-```bash
-# Node.js 설치
-sudo snap install node --classic
-
-# 설치 확인
-node --version
-npm --version
-```
-
-**방법 3: 기본 저장소 사용 (버전이 낮을 수 있음)**
-```bash
-# 패키지 목록 업데이트
-sudo apt update
-
-# Node.js 및 npm 설치
-sudo apt install nodejs npm
-
-# 설치 확인
-node --version
-npm --version
-```
-
-#### CentOS/RHEL/Fedora 계열
-
-**CentOS/RHEL:**
-```bash
-# NodeSource 저장소 추가
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-
-# Node.js 설치
-sudo yum install -y nodejs
-
-# 설치 확인
-node --version
-npm --version
-```
-
-**Fedora:**
-```bash
-# NodeSource 저장소 추가
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-
-# Node.js 설치
-sudo dnf install -y nodejs
-
-# 설치 확인
-node --version
-npm --version
-```
-
-#### Arch Linux 계열
-
-```bash
-# Node.js 및 npm 설치
-sudo pacman -S nodejs npm
-
-# 설치 확인
-node --version
-npm --version
-```
-
-### 2. Node Version Manager (NVM) 사용 (고급 사용자)
-
-여러 Node.js 버전을 관리해야 하는 경우:
-
-```bash
-# nvm 설치
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-
-# 터미널 재시작 또는 설정 파일 다시 로드
-source ~/.bashrc
-
-# 최신 LTS 버전 설치
-nvm install --lts
-nvm use --lts
-
-# 설치 확인
-node --version
-npm --version
-```
-
-### 3. 프로젝트 클론 및 디렉토리 이동
-
-```bash
-# Git이 설치되어 있지 않다면 설치
-sudo apt install git  # Ubuntu/Debian
-# 또는
-sudo yum install git   # CentOS/RHEL
-
-# 프로젝트 클론 (실제 저장소 URL로 변경 필요)
-git clone [YOUR_REPOSITORY_URL] Fablink-Front
-
-# 프로젝트 디렉토리로 이동
-cd Fablink-Front
-```
-
-### 4. 의존성 패키지 설치
+### 1. 의존성 패키지 설치
 
 #### 일반 설치 시도
 
@@ -161,22 +47,6 @@ npm config set legacy-peer-deps true
 
 # 이후 일반적인 방법으로 설치 가능
 npm install
-```
-
-### 5. 환경 변수 설정 (선택사항)
-
-필요한 환경 변수가 있다면 `.env.local` 파일을 생성:
-
-```bash
-# 환경 변수 파일 생성
-cp .env.example .env.local  # .env.example이 있는 경우
-
-# 또는 직접 생성
-cat > .env.local << EOF
-# 개발 환경 설정
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-NEXT_PUBLIC_APP_NAME=Fablink
-EOF
 ```
 
 ## 🎯 프로젝트 실행
@@ -228,60 +98,6 @@ npm run start
 
 # 코드 린트 검사
 npm run lint
-```
-
-## 🔧 문제 해결
-
-### 1. 권한 오류 발생 시
-
-```bash
-# npm 글로벌 디렉토리 소유권 변경
-sudo chown -R $(whoami) $(npm config get prefix)/{lib/node_modules,bin,share}
-
-# 또는 sudo 없이 글로벌 패키지를 설치할 수 있도록 설정
-mkdir ~/.npm-global
-npm config set prefix '~/.npm-global'
-echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 2. 포트 충돌 시
-
-```bash
-# 다른 포트로 개발 서버 실행
-npm run dev -- --port 3001
-
-# 또는 환경 변수로 설정
-PORT=3001 npm run dev
-```
-
-### 3. 메모리 부족 오류 시
-
-```bash
-# Node.js 힙 메모리 크기 증가
-NODE_OPTIONS="--max-old-space-size=4096" npm run dev
-```
-
-### 4. 패키지 설치 오류 시
-
-```bash
-# npm 캐시 정리
-npm cache clean --force
-
-# node_modules 완전 삭제 후 재설치
-rm -rf node_modules package-lock.json
-npm install --legacy-peer-deps
-```
-
-### 5. WSL 환경 특수 사항
-
-```bash
-# WSL에서 파일 변경 감지가 안될 때
-echo "export CHOKIDAR_USEPOLLING=true" >> ~/.bashrc
-source ~/.bashrc
-
-# 또는 일회성으로 실행
-CHOKIDAR_USEPOLLING=true npm run dev
 ```
 
 ## 📁 프로젝트 구조
@@ -341,5 +157,6 @@ git config --global user.email "your.email@example.com"
 4. ✅ 페이지가 올바르게 렌더링됨
 
 **축하합니다! Fablink-Front 개발 환경 설정이 완료되었습니다.** 🎉
+
 
 이제 코드를 수정하고 실시간으로 변경 사항을 확인할 수 있습니다.
