@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { ArrowRight, Shirt } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 // Per-step DB 호출을 중단하고 localStorage에만 저장합니다.
@@ -85,8 +85,8 @@ export default function ManufacturingStep1() {
             onClick={() => router.push('/')}
             className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
           >
-            <Shirt className="h-8 w-8" />
-            <span className="text-2xl font-bold">Fablink</span>
+            <img src="/FabLink_logo.png" alt="FabLink" className="h-14 w-auto" />
+            <span className="sr-only">FabLink</span>
           </button>
         </div>
         
@@ -102,7 +102,7 @@ export default function ManufacturingStep1() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Shirt className="h-12 w-12 text-blue-600" />
+            <img src="/FabLink_logo.png" alt="FabLink" className="h-16 w-auto" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">제품 정보 입력</h1>
           <p className="text-gray-600">제작하실 의류의 기본 정보를 입력해주세요</p>

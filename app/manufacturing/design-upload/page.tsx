@@ -200,8 +200,8 @@ export default function ManufacturingStep2() {
             onClick={() => router.push('/')}
             className="flex items-center space-x-2 text-black hover:text-gray-700 transition-colors"
           >
-            <Shirt className="h-8 w-8" />
-            <span className="text-2xl font-bold">Fablink</span>
+            <img src="/FabLink_logo.png" alt="FabLink" className="h-14 w-auto" />
+            <span className="text-2xl font-bold sr-only">FabLink</span>
           </button>
         </div>
         
@@ -237,14 +237,14 @@ export default function ManufacturingStep2() {
                 >
                   <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-sm font-medium text-gray-900 mb-1">파일 업로드</p>
-                  <p className="text-xs text-gray-500">png, png, PDF 지원</p>
+                  <p className="text-xs text-gray-500">jpg, jpeg, png, pdf 지원</p>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".png,.jpeg,.png,.pdf"
+                  accept=".png,.jpg,.jpeg,.pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -297,7 +297,6 @@ export default function ManufacturingStep2() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Shirt className="h-5 w-5" />
                 <span>의류 종류 & 디자인 요소</span>
               </CardTitle>
               <CardDescription>제작할 의류 종류와 디자인 요소를 선택해주세요</CardDescription>

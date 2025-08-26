@@ -22,12 +22,28 @@ class ApiClient {
     }
 
     private getAuthHeaders(): Record<string, string> {
-        // 세션 스토리지에서 토큰 가져오기 (서버 재시작 시 사라짐)
-        const token = typeof window !== 'undefined' ? sessionStorage.getItem('authToken') : null;
-        if (token) {
-            return { Authorization: `Bearer ${token}` };
+        if (typeof window === 'undefined') return {}
+        // 1) sessionStorage 우선
+        let token: string | null = null
+        try { token = sessionStorage.getItem('authToken') } catch {}
+        // 2) localStorage (authTokens JSON) fallback
+        if (!token) {
+            try {
+                const raw = localStorage.getItem('authTokens')
+                if (raw) {
+                    const parsed = JSON.parse(raw)
+                    if (parsed && typeof parsed.access === 'string') token = parsed.access
+                }
+            } catch {}
         }
-        return {};
+        // 3) cookie fallback (authToken)
+        if (!token) {
+            try {
+                const m = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('authToken='))
+                if (m) token = decodeURIComponent(m.substring('authToken='.length))
+            } catch {}
+        }
+        return token ? { Authorization: `Bearer ${token}` } : {}
     }
 
     private async request<T>(
@@ -122,6 +138,13 @@ class ApiClient {
 
     async delete<T>(endpoint: string): Promise<T> {
         return this.request<T>(endpoint, { method: 'DELETE' })
+    }
+
+    async patch<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
+        return this.request<T>(endpoint, {
+            method: 'PATCH',
+            body: body ? JSON.stringify(body) : undefined,
+        })
     }
 
     async uploadFile<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' | 'PATCH' = 'POST'): Promise<T> {

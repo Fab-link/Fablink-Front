@@ -44,25 +44,13 @@ export default function ManufacturingStep8() {
     }
   }, [])
 
-  const pricing = useMemo(() => {
+  const orderSummary = useMemo(() => {
     if (!orderData?.step5?.totalQuantity) return null
     
     const quantity = Number.parseInt(orderData.step5.totalQuantity)
-    const basePrice = 15000
-    const totalPrice = quantity * basePrice
-    const sampleFee = 0
-    const shippingFee = quantity >= 500 ? 0 : 50000
-    const tax = Math.floor(totalPrice * 0.1)
-    const finalPrice = totalPrice + sampleFee + shippingFee + tax
 
     return {
-      basePrice,
       quantity,
-      totalPrice,
-      sampleFee,
-      shippingFee,
-      tax,
-      finalPrice,
     }
   }, [orderData?.step5?.totalQuantity])
 
@@ -74,8 +62,8 @@ export default function ManufacturingStep8() {
       return
     }
 
-    if (!pricing) {
-      alert("가격 정보를 불러올 수 없습니다.")
+    if (!orderSummary) {
+      alert("주문 정보를 불러올 수 없습니다.")
       return
     }
 
@@ -86,7 +74,6 @@ export default function ManufacturingStep8() {
         ...orderData,
         step8: {
           customerInfo: formData,
-          pricing,
           orderedAt: new Date().toISOString(),
           orderId: `temp-${Date.now()}`
         },
@@ -139,7 +126,7 @@ export default function ManufacturingStep8() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [formData, pricing, orderData, router, designFiles])
+  }, [formData, orderSummary, orderData, router, designFiles])
 
   const handleBack = useCallback(() => {
     router.push("/manufacturing/work-order")
@@ -154,13 +141,13 @@ export default function ManufacturingStep8() {
     formData.customerName &&
     formData.customerPhone &&
     formData.address &&
-    formData.paymentMethod &&
+
     formData.agreeTerms &&
     formData.agreePrivacy,
     [formData]
   )
 
-  if (!orderData || !pricing) {
+  if (!orderData || !orderSummary) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -194,8 +181,8 @@ export default function ManufacturingStep8() {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">주문 완료</h1>
-          <p className="text-gray-600">고객 정보와 결제 방법을 입력하고 주문을 완료해주세요</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">제조 요청 완료</h1>
+          <p className="text-gray-600">고객 정보를 입력하고 제조 요청을 완료해주세요</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -289,42 +276,7 @@ export default function ManufacturingStep8() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CreditCard className="h-5 w-5" />
-                    <span>결제 방법</span>
-                  </CardTitle>
-                  <CardDescription>결제 방법을 선택해주세요</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Select
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="결제 방법을 선택해주세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bank-transfer">무통장 입금</SelectItem>
-                      <SelectItem value="card">신용카드</SelectItem>
-                      <SelectItem value="corporate-card">법인카드</SelectItem>
-                      <SelectItem value="installment">할부 결제</SelectItem>
-                    </SelectContent>
-                  </Select>
 
-                  {formData.paymentMethod === "bank-transfer" && (
-                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-medium text-blue-900 mb-2">입금 계좌 정보</h4>
-                      <p className="text-sm text-blue-800">
-                        국민은행 123456-78-901234
-                        <br />
-                        예금주: (주)옷제작플랫폼
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
 
               <Card>
                 <CardHeader>
@@ -379,7 +331,7 @@ export default function ManufacturingStep8() {
                   ) : (
                     <>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      {pricing.finalPrice.toLocaleString()}원 견적 요청
+                      제조 요청 완료
                     </>
                   )}
                 </Button>
@@ -400,7 +352,7 @@ export default function ManufacturingStep8() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">수량:</span>
-                    <span className="font-medium">{pricing.quantity}개</span>
+                    <span className="font-medium">{orderSummary.quantity}개</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">샘플 사이즈:</span>
@@ -420,52 +372,28 @@ export default function ManufacturingStep8() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Calculator className="h-5 w-5" />
-                  <span>결제 금액</span>
+                  <span>제조 요청 정보</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>제품 단가:</span>
-                    <span>{pricing.basePrice.toLocaleString()}원</span>
+                    <span>요청 수량:</span>
+                    <span>{orderSummary.quantity}개</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>수량:</span>
-                    <span>{pricing.quantity}개</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>소계:</span>
-                    <span>{pricing.totalPrice.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>샘플 제작비:</span>
-                    <span className="text-green-600">무료</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>배송비:</span>
-                    <span className={pricing.shippingFee === 0 ? "text-green-600" : ""}>
-                      {pricing.shippingFee === 0 ? "무료" : `${pricing.shippingFee.toLocaleString()}원`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>부가세 (10%):</span>
-                    <span>{pricing.tax.toLocaleString()}원</span>
+                    <span>진행 방식:</span>
+                    <span>공장 입찰</span>
                   </div>
                 </div>
 
                 <Separator />
 
-                <div className="flex justify-between text-lg font-bold">
-                  <span>총 결제금액:</span>
-                  <span className="text-blue-600">{pricing.finalPrice.toLocaleString()}원</span>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>입찰 방식:</strong> 공장들이 견적을 제출하면 가격을 비교하여 선택할 수 있습니다.
+                  </p>
                 </div>
-
-                {pricing.quantity >= 500 && (
-                  <div className="flex items-center space-x-2 text-sm text-green-600">
-                    <CheckCircle className="h-4 w-4" />
-                    <span>500개 이상 주문으로 배송비 무료!</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -474,11 +402,11 @@ export default function ManufacturingStep8() {
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-amber-800">
-                    <p className="font-medium mb-1">주문 전 확인사항</p>
+                    <p className="font-medium mb-1">제조 요청 전 확인사항</p>
                     <ul className="space-y-1 text-xs">
-                      <li>• 주문 후 변경/취소가 어려우니 신중히 검토해주세요</li>
-                      <li>• 샘플 승인 후 대량 생산이 시작됩니다</li>
-                      <li>• 납기일은 샘플 승인일 기준입니다</li>
+                      <li>• 요청 후 공장들이 견적을 제출합니다</li>
+                      <li>• 견적을 비교하여 최적의 공장을 선택할 수 있습니다</li>
+                      <li>• 가격은 공장 입찰을 통해 결정됩니다</li>
                     </ul>
                   </div>
                 </div>

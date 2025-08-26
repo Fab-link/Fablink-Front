@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Shirt, Zap, Users, Award } from "lucide-react"
+import { Zap, Users, Award } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuthContext } from "@/contexts/AuthContext"
@@ -36,8 +36,8 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-2">
-              <Shirt className="h-8 w-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">옷 제작 플랫폼</h1>
+              <img src="/FabLink_logo.png" alt="FabLink" className="h-14 w-auto" />
+              <h1 className="sr-only">FabLink</h1>
             </div>
             <div className="flex items-center space-x-4">
               <nav className="hidden md:flex space-x-8">
@@ -162,8 +162,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <Shirt className="h-6 w-6" />
-                <span className="text-lg font-bold">옷 제작 플랫폼</span>
+                <img src="/FabLink_logo.png" alt="FabLink" className="h-12 w-auto" />
+                <span className="sr-only">FabLink</span>
               </div>
               <p className="text-gray-400">AI 기반 맞춤형 의류 제작 서비스</p>
             </div>
@@ -199,7 +199,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 옷 제작 플랫폼. All rights reserved.</p>
+            <p>&copy; 2024 FabLink. All rights reserved.</p>
           </div>
         </div>
       </footer>
