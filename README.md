@@ -1,104 +1,6 @@
-# Fablink-Front 설치 및 실행 가이드
+# Fablink-Front 실행 가이드
 
 의류 디자인 플랫폼 Fablink의 프론트엔드 프로젝트입니다.
-
-## 📋 시스템 요구사항
-
-- **운영체제**: Linux (Ubuntu 18.04+, Debian 10+, CentOS 7+ 등)
-- **Node.js**: 18.18.0 이상 (Next.js 15 요구사항)
-- **메모리**: 최소 2GB RAM 권장
-- **디스크**: 최소 1GB 여유 공간
-
-## 🚀 설치 가이드
-
-### 1. 의존성 패키지 설치
-
-#### 일반 설치 시도
-
-```bash
-# package.json의 모든 의존성 설치
-npm install
-```
-
-#### 버전 호환성 오류 발생 시
-
-React 19와 일부 패키지 간 호환성 문제가 발생할 수 있습니다:
-
-```bash
-# 기존 설치 파일 정리
-rm -rf node_modules package-lock.json
-
-# legacy-peer-deps 플래그로 설치
-npm install --legacy-peer-deps
-```
-
-**또는**
-
-```bash
-# force 플래그로 설치
-npm install --force
-```
-
-#### npm 설정 영구 변경 (권장)
-
-```bash
-# legacy-peer-deps를 기본 설정으로 지정
-npm config set legacy-peer-deps true
-
-# 이후 일반적인 방법으로 설치 가능
-npm install
-```
-
-## 🎯 프로젝트 실행
-
-### 개발 서버 실행
-
-```bash
-# 로컬 모드 
-npm run local
-
-# dev 모드
-npm run dev
-
-# prod 모드
-npm run prod
-```
-
-성공적으로 실행되면 다음과 같은 메시지가 표시됩니다:
-```
-> my-v0-project@0.1.0 dev
-> next dev
-
-   ▲ Next.js 15.2.4
-   - Local:        http://localhost:3000
-   - Environments: .env.local
-
- ✓ Ready in 2.3s
-```
-
-### 웹 브라우저에서 접속
-
-```bash
-# 브라우저에서 다음 주소로 접속
-http://localhost:3000
-```
-
-**WSL 환경에서 접속 시:**
-- Windows 브라우저에서 `http://localhost:3000` 접속 가능
-- WSL IP 확인이 필요한 경우: `ip addr show eth0`
-
-### 다른 실행 명령어들
-
-```bash
-# 프로덕션 빌드 생성
-npm run build
-
-# 빌드된 앱을 프로덕션 모드로 실행
-npm run start
-
-# 코드 린트 검사
-npm run lint
-```
 
 ## 📁 프로젝트 구조
 
@@ -119,44 +21,92 @@ Fablink-Front/
 └── package.json          # 의존성 및 스크립트
 ```
 
-## 🛠️ 개발 환경 설정
+## 🌍 환경별 설정 개요
 
-### VSCode 확장 프로그램 (권장)
+Fablink-Front는 환경별로 다른 API 서버와 설정을 사용합니다. 각 환경은 자동으로 적절한 환경 변수 파일을 생성하고 관리합니다.
+
+### 지원하는 환경
+
+- **local**: 로컬 개발 환경 (백엔드 서버 localhost:8000)
+- **dev**: 개발 서버 환경 (AWS 개발 환경)
+- **prod**: 프로덕션 환경 (실제 서비스 환경)
+
+---
+
+## 🚀 프로젝트 실행 방법
+
+### 1. npm run local (로컬 개발)
+
+**사용 시기**: 백엔드를 로컬에서 실행할 때
 
 ```bash
-# VSCode가 설치되어 있다면 다음 확장 설치 권장:
-# - ES7+ React/Redux/React-Native snippets
-# - Tailwind CSS IntelliSense
-# - TypeScript Importer
-# - Auto Rename Tag
-# - Prettier - Code formatter
+npm run local
 ```
 
-### Git 설정
+**실행 과정**:
+
+1. 기존 .env 파일들 정리 (.env.example 제외)
+2. `.env.local` 파일 생성
+3. Next.js 개발 서버 시작 (http://localhost:3000)
+
+**생성되는 환경 변수**:
 
 ```bash
-# Git 사용자 정보 설정 (최초 1회)
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
+# .env.local
+NEXT_PUBLIC_ENV=local
+NODE_ENV=development
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_DEBUG=true
+NEXT_PUBLIC_MOCK_API=true
+NEXT_PUBLIC_AWS_REGION=ap-northeast-2
+NEXT_PUBLIC_AWS_S3_BUCKET=fablink-local-uploads
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-## 🔗 관련 링크
+**특징**:
 
-- **Next.js 문서**: https://nextjs.org/docs
-- **Tailwind CSS 문서**: https://tailwindcss.com/docs
-- **shadcn/ui 문서**: https://ui.shadcn.com/docs
-- **TypeScript 문서**: https://www.typescriptlang.org/docs
+- 로컬 백엔드 서버 (localhost:8000) 연결
+- Mock API 활성화
+- 모든 실험적 기능 활성화
+- 상세한 디버그 로그
+- 실시간 코드 변경 반영
 
-## 🚀 성공적인 실행 확인
+### 2. npm run dev (개발 서버 배포)
 
-모든 설정이 완료되면:
+**사용 시기**: AWS 개발 환경에 배포할 때
 
-1. ✅ `node --version` 명령어로 Node.js 18.18+ 확인
-2. ✅ `npm run dev` 실행 시 오류 없이 서버 시작
-3. ✅ 브라우저에서 `http://localhost:3000` 정상 접속
-4. ✅ 페이지가 올바르게 렌더링됨
+```bash
+npm run dev
+```
 
-**축하합니다! Fablink-Front 개발 환경 설정이 완료되었습니다.** 🎉
+**실행 과정**:
 
+1. 기존 .env 파일들 정리 (.env.example 제외)
+2. `.env.development` 파일 생성
+3. Next.js 빌드 실행
+4. S3에 정적 파일 업로드
+5. CloudFront 배포
 
-이제 코드를 수정하고 실시간으로 변경 사항을 확인할 수 있습니다.
+**생성되는 환경 변수**:
+
+```bash
+# .env.development
+NEXT_PUBLIC_ENV=dev
+NODE_ENV=development
+NEXT_PUBLIC_API_URL=https://fablink-api-dev.com
+NEXT_PUBLIC_DEBUG=true
+NEXT_PUBLIC_MOCK_API=false
+NEXT_PUBLIC_AWS_REGION=ap-northeast-2
+NEXT_PUBLIC_AWS_S3_BUCKET=fablink-dev-website
+NEXTAUTH_URL=https://fab-link-dev.org
+```
+
+**특징**:
+
+- AWS 개발 서버 (fablink-api-dev.com) 연결
+- 실제 API 호출
+- 실험적 기능 활성화
+- 디버그 모드 활성화
+- S3 + CloudFront 배포
+
+---
