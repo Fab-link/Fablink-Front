@@ -18,121 +18,134 @@ export function useAuth() {
   });
 
   /**
-   * 세션 스토리지에서 인증 정보 로드
+   * localStorage에서 인증 정보 로드 (통일된 방식)
    */
   const loadAuthFromStorage = useCallback(async () => {
     debugLog('loadAuthFromStorage 호출됨');
     try {
-      // 서버 사이드 렌더링 환경에서는 sessionStorage에 접근할 수 없음
+      // 서버 사이드 렌더링 환경에서는 localStorage에 접근할 수 없음
       if (typeof window === 'undefined') {
-    setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
+        setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
         return;
       }
       
-      // 1차: sessionStorage (탭 생명주기)
-      let authToken = sessionStorage.getItem('authToken');
-      let refreshToken = sessionStorage.getItem('refreshToken');
-      let userJson = sessionStorage.getItem('userData');
+      // localStorage에서 토큰과 사용자 정보 가져오기 (통일된 방식)
+      const tokensJson = localStorage.getItem('authTokens');
+      const userJson = localStorage.getItem('userData');
 
-      // 새로고침(탭 재시작) 후 sessionStorage 비어있을 수 있으므로 localStorage fallback
-      if (!authToken || !refreshToken) {
+      debugLog('localStorage 값:', { 
+        tokensJson: tokensJson ? '존재함' : '없음', 
+        userJson: userJson ? '존재함' : '없음' 
+      });
+
+      if (tokensJson && userJson) {
         try {
-          const lsTokensRaw = localStorage.getItem('authTokens');
-          if (lsTokensRaw) {
-            const lsTokens = JSON.parse(lsTokensRaw);
-            if (lsTokens?.access && lsTokens?.refresh) {
-              authToken = authToken || lsTokens.access;
-              refreshToken = refreshToken || lsTokens.refresh;
-              // sessionStorage에 다시 채워 넣어 기존 로직과 동기화
-              sessionStorage.setItem('authToken', lsTokens.access);
-              sessionStorage.setItem('refreshToken', lsTokens.refresh);
-            }
-          }
-          // userData도 복원
-          if (!userJson) {
-            const lsUserRaw = localStorage.getItem('userData');
-            if (lsUserRaw) {
-              userJson = lsUserRaw;
-              sessionStorage.setItem('userData', lsUserRaw);
-            }
-          }
-        } catch (e) {
-          debugLog('localStorage fallback 복원 실패', e);
-        }
-      }
+          const tokens: Tokens = JSON.parse(tokensJson);
+          const user: User = JSON.parse(userJson);
+          
+          debugLog('토큰 및 사용자 데이터 파싱 완료', { user, tokens });
 
-      debugLog('세션 스토리지 값:', { authToken: authToken ? '존재함' : '없음', refreshToken: refreshToken ? '존재함' : '없음', userJson: userJson ? '존재함' : '없음' });
-
-      if (authToken && refreshToken && userJson) {
-        const tokens: Tokens = { access: authToken, refresh: refreshToken };
-        const user: User = JSON.parse(userJson);
-        
-        debugLog('토큰 및 사용자 데이터 파싱 완료', { user, tokens });
-
-        // 토큰 유효성 검증
-        const isValid = await authApi.validateToken();
-        debugLog('토큰 유효성 검증 결과:', isValid);
-        
-        if (isValid) {
-          debugLog('토큰 유효함, 인증 상태 설정');
-          setAuthState({
-            user,
-            tokens,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-        } else {
-          debugLog('토큰 유효하지 않음, 갱신 시도');
-          // 토큰이 유효하지 않은 경우 토큰 갱신 시도
+          // 토큰 유효성 검증 (네트워크 오류 시 유효하다고 가정)
+          let isValid = true;
           try {
-            const newTokens = await authApi.refreshToken();
-            debugLog('토큰 갱신 성공:', newTokens);
+            isValid = await authApi.validateToken();
+            debugLog('🔍 토큰 유효성 검증 결과:', isValid);
+          } catch (validationError) {
+            debugLog('🚨 토큰 유효성 검증 중 오류:', validationError);
+            // 네트워크 오류인 경우 토큰을 유효하다고 가정
+            if (validationError.message?.includes('네트워크') || 
+                validationError.message?.includes('Failed to fetch')) {
+              debugLog('🔄 네트워크 오류로 인한 검증 실패, 토큰 유효하다고 가정');
+              isValid = true;
+            } else {
+              isValid = false;
+            }
+          }
+          
+          if (isValid) {
+            debugLog('토큰 유효함, 인증 상태 설정');
             setAuthState({
               user,
-              tokens: newTokens,
+              tokens,
               isAuthenticated: true,
               isLoading: false,
               error: null,
             });
-          } catch (refreshError) {
-            debugLog('토큰 갱신 실패:', refreshError);
-            // 갱신도 실패하면 로그아웃 처리
-            await logout();
+          } else {
+            debugLog('토큰 유효하지 않음, 갱신 시도');
+            // 토큰이 유효하지 않은 경우 토큰 갱신 시도
+            try {
+              const newTokens = await authApi.refreshToken();
+              debugLog('토큰 갱신 성공:', {
+                access: newTokens.access ? newTokens.access.substring(0, 20) + '...' : 'undefined',
+                refresh: newTokens.refresh ? newTokens.refresh.substring(0, 20) + '...' : 'undefined'
+              });
+              
+              // localStorage에 새 토큰 저장 (통일된 방식)
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('authTokens', JSON.stringify(newTokens));
+              }
+              
+              setAuthState({
+                user,
+                tokens: newTokens,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+            } catch (refreshError) {
+              debugLog('🚨 토큰 갱신 실패:', refreshError);
+              
+              // 네트워크 오류인 경우 토큰을 유지하고 재시도 가능하도록 함
+              if (refreshError.message?.includes('네트워크') || 
+                  refreshError.message?.includes('Failed to fetch') ||
+                  refreshError.message?.includes('timeout')) {
+                debugLog('🔄 네트워크 오류로 인한 갱신 실패, 토큰 유지');
+                setAuthState((prev: AuthState) => ({ 
+                  ...prev, 
+                  isLoading: false,
+                  error: '네트워크 연결을 확인해주세요. 토큰은 유지됩니다.'
+                }));
+                return;
+              }
+              
+              // 토큰이 정말 만료된 경우에만 로그아웃
+              debugLog('🚨 토큰 만료로 인한 갱신 실패, 로그아웃 처리');
+              await logout();
+            }
           }
-        }
-      } else if (authToken && refreshToken && !userJson) {
-        // 토큰은 있으나 userData가 없는 경우(드문 케이스) 백엔드로부터 사용자 정보 재조회
-        try {
-          debugLog('userData 누락 → user_info 재요청');
-          const info = await authApi.getCurrentUser();
-          if (info?.success && info?.user) {
-            const userInfo: User = {
-              id: (info.user as any).id,
-              userId: (info.user as any).userId,
-              name: (info.user as any).name,
-              userType: (info.user as any).userType,
-              contact: (info.user as any).contact || '',
-              address: (info.user as any).address || ''
-            } as User;
-            sessionStorage.setItem('userData', JSON.stringify(userInfo));
-            setAuthState({
-              user: userInfo,
-              tokens: { access: authToken, refresh: refreshToken },
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
-            });
-            return;
+        } catch (parseError) {
+          debugLog('🚨 토큰/사용자 데이터 파싱 실패:', parseError);
+          debugLog('🚨 파싱 실패한 데이터:', { tokensJson, userJson });
+          
+          // 파싱 실패가 정말 심각한 경우에만 삭제
+          if (tokensJson && tokensJson !== 'null' && tokensJson !== 'undefined') {
+            try {
+              // 한 번 더 파싱 시도
+              const testParse = JSON.parse(tokensJson);
+              debugLog('🔄 재파싱 성공:', testParse);
+              // 재파싱 성공하면 삭제하지 않음
+              setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
+              return;
+            } catch (reparseError) {
+              debugLog('🚨 재파싱도 실패, 토큰 삭제:', reparseError);
+            }
           }
-        } catch (e) {
-          debugLog('user_info 재조회 실패', e);
+          
+          // 정말 파싱이 불가능한 경우에만 삭제
+          localStorage.removeItem('authTokens');
+          localStorage.removeItem('userData');
+          setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
         }
-        // 실패 시 비인증 처리
-  setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
+      } else if (tokensJson && !userJson) {
+        // 토큰은 있으나 userData가 없는 경우 - 데이터 불일치로 간주하여 로그아웃 처리
+        debugLog('userData 누락 → 데이터 불일치로 인한 로그아웃 처리');
+        localStorage.removeItem('authTokens');
+        localStorage.removeItem('userData');
+        setAuthState((prev: AuthState) => ({ ...prev, isLoading: false }));
       } else {
         debugLog('필요한 인증 정보가 부족함, 비인증 상태로 설정');
-  setAuthState((prev: AuthState) => ({
+        setAuthState((prev: AuthState) => ({
           ...prev,
           isLoading: false,
         }));
@@ -193,9 +206,9 @@ export function useAuth() {
         };
         
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('authToken', response.tokens.access);
-          sessionStorage.setItem('refreshToken', response.tokens.refresh);
-          sessionStorage.setItem('userData', JSON.stringify(userInfo));
+          // localStorage에만 저장 (통일된 방식)
+          localStorage.setItem('authTokens', JSON.stringify(response.tokens));
+          localStorage.setItem('userData', JSON.stringify(userInfo));
         }
 
         setAuthState({
@@ -250,9 +263,9 @@ export function useAuth() {
       
       await authApi.logout();
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('userData');
+        // localStorage 정리 (통일된 방식)
+        localStorage.removeItem('authTokens');
+        localStorage.removeItem('userData');
       }
       
       setAuthState({
@@ -267,9 +280,8 @@ export function useAuth() {
       
       // 에러가 발생해도 로컬에서는 로그아웃 처리
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('userData');
+        localStorage.removeItem('authTokens');
+        localStorage.removeItem('userData');
       }
       setAuthState({
         user: null,
@@ -294,17 +306,26 @@ export function useAuth() {
   const refreshTokens = async () => {
     try {
       if (typeof window === 'undefined') {
-        throw new Error('Cannot access sessionStorage on server side');
+        throw new Error('Cannot access localStorage on server side');
       }
       
-      const refreshToken = sessionStorage.getItem('refreshToken');
-      if (!refreshToken) {
+      // localStorage에서 토큰 가져오기 (통일된 방식)
+      const tokensJson = localStorage.getItem('authTokens');
+      if (!tokensJson) {
+        throw new Error('Tokens not found');
+      }
+      
+      const tokens: Tokens = JSON.parse(tokensJson);
+      if (!tokens.refresh) {
         throw new Error('Refresh token not found');
       }
-  const newTokens = await authApi.refreshToken();
-      sessionStorage.setItem('authToken', newTokens.access);
-      sessionStorage.setItem('refreshToken', newTokens.refresh);
-  setAuthState((prev: AuthState) => ({
+
+      const newTokens = await authApi.refreshToken();
+      
+      // localStorage에 새 토큰 저장 (통일된 방식)
+      localStorage.setItem('authTokens', JSON.stringify(newTokens));
+      
+      setAuthState((prev: AuthState) => ({
         ...prev,
         tokens: newTokens,
       }));

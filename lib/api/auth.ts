@@ -3,7 +3,6 @@ import {
   AuthResponse, 
   LogoutRequest, 
   LogoutResponse, 
-  UserInfoResponse,
   Tokens 
 } from '@/types/auth';
 import { apiClient } from './client';
@@ -119,27 +118,21 @@ export const authApi = {
   },
 
   /**
-   * 현재 사용자 정보 가져오기
-   * @returns 사용자 정보
-   */
-  getCurrentUser: async (): Promise<UserInfoResponse> => {
-    debugLog('사용자 정보 요청');
-    try {
-      return await apiClient.get<UserInfoResponse>('/accounts/user_info/');
-    } catch (error) {
-      debugLog('사용자 정보 요청 실패:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * 토큰 유효성 검증
+   * 토큰 유효성 검증 (로컬 스토리지 기반)
    * @returns 토큰 유효성 결과
    */
   validateToken: async (): Promise<boolean> => {
     try {
-      const response = await apiClient.get<UserInfoResponse>('/accounts/user_info/');
-      return response.success;
+      const tokensJson = localStorage.getItem('authTokens');
+      const userData = localStorage.getItem('userData');
+      
+      // 로컬 스토리지에 토큰과 사용자 데이터가 있는지 확인
+      if (!tokensJson || !userData) {
+        return false;
+      }
+      
+      const tokens: Tokens = JSON.parse(tokensJson);
+      return !!(tokens.access && tokens.refresh);
     } catch (error) {
       debugLog('토큰 유효성 검증 실패:', error);
       return false;
@@ -153,26 +146,66 @@ export const authApi = {
   refreshToken: async (): Promise<Tokens> => {
     debugLog('토큰 갱신 시도');
     try {
+      // localStorage에서 토큰 가져오기 (통일된 방식)
       const tokensJson = localStorage.getItem('authTokens');
       if (!tokensJson) {
         throw new Error('저장된 토큰이 없습니다');
       }
 
       const tokens: Tokens = JSON.parse(tokensJson);
-      const response = await apiClient.post<{ access: string; refresh: string }>('/accounts/token/refresh/', {
+      if (!tokens.refresh) {
+        throw new Error('Refresh 토큰이 없습니다');
+      }
+
+      debugLog('토큰 갱신 요청:', { refresh: tokens.refresh.substring(0, 20) + '...' });
+
+      const response = await apiClient.post<any>('/accounts/token/refresh/', {
         refresh: tokens.refresh
-      });
+      }, true); // skipAuth = true
 
-      const newTokens: Tokens = {
-        access: response.access,
-        refresh: response.refresh
-      };
+      debugLog('토큰 갱신 응답 전체:', response);
 
-      // 새로운 토큰 저장
+      // 응답 구조 확인 및 새 토큰 추출
+      let newTokens: Tokens;
+      
+      if (response.success && response.tokens) {
+        // 성공 응답에서 토큰 추출
+        newTokens = {
+          access: response.tokens.access,
+          refresh: response.tokens.refresh
+        };
+      } else if (response.access && response.refresh) {
+        // 직접 토큰이 응답에 있는 경우
+        newTokens = {
+          access: response.access,
+          refresh: response.refresh
+        };
+      } else if (response.tokens && response.tokens.access && response.tokens.refresh) {
+        // 중첩된 tokens 객체에서 추출
+        newTokens = {
+          access: response.tokens.access,
+          refresh: response.tokens.refresh
+        };
+      } else {
+        debugLog('토큰 갱신 응답 구조 오류:', response);
+        throw new Error('토큰 갱신 응답 형식이 올바르지 않습니다');
+      }
+
+      // 토큰 유효성 검증
+      if (!newTokens.access || !newTokens.refresh) {
+        debugLog('토큰 갱신 결과 검증 실패:', newTokens);
+        throw new Error('갱신된 토큰이 유효하지 않습니다');
+      }
+
+      // localStorage에 새로운 토큰 저장 (통일된 방식)
       localStorage.setItem('authTokens', JSON.stringify(newTokens));
       setCookie('authToken', newTokens.access, 7);
 
-      debugLog('토큰 갱신 성공');
+      debugLog('토큰 갱신 성공:', {
+        access: newTokens.access.substring(0, 20) + '...',
+        refresh: newTokens.refresh.substring(0, 20) + '...'
+      });
+      
       return newTokens;
     } catch (error) {
       debugLog('토큰 갱신 실패:', error);
