@@ -52,9 +52,14 @@ export function useAuth() {
             debugLog('🔍 토큰 유효성 검증 결과:', isValid);
           } catch (validationError) {
             debugLog('🚨 토큰 유효성 검증 중 오류:', validationError);
+            
+            // 에러 메시지 안전하게 추출
+            const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+            
             // 네트워크 오류인 경우 토큰을 유효하다고 가정
-            if (validationError.message?.includes('네트워크') || 
-                validationError.message?.includes('Failed to fetch')) {
+            if (errorMessage.includes('네트워크') || 
+                errorMessage.includes('Failed to fetch') ||
+                errorMessage.includes('NetworkError')) {
               debugLog('🔄 네트워크 오류로 인한 검증 실패, 토큰 유효하다고 가정');
               isValid = true;
             } else {
@@ -96,10 +101,14 @@ export function useAuth() {
             } catch (refreshError) {
               debugLog('🚨 토큰 갱신 실패:', refreshError);
               
+              // 에러 메시지 안전하게 추출
+              const errorMessage = refreshError instanceof Error ? refreshError.message : String(refreshError);
+              
               // 네트워크 오류인 경우 토큰을 유지하고 재시도 가능하도록 함
-              if (refreshError.message?.includes('네트워크') || 
-                  refreshError.message?.includes('Failed to fetch') ||
-                  refreshError.message?.includes('timeout')) {
+              if (errorMessage.includes('네트워크') || 
+                  errorMessage.includes('Failed to fetch') ||
+                  errorMessage.includes('timeout') ||
+                  errorMessage.includes('NetworkError')) {
                 debugLog('🔄 네트워크 오류로 인한 갱신 실패, 토큰 유지');
                 setAuthState((prev: AuthState) => ({ 
                   ...prev, 
@@ -222,16 +231,19 @@ export function useAuth() {
       } else {
         throw new Error(response.message || '로그인 실패');
       }
-    } catch (error: any) {
+    } catch (error) {
       debugLog('로그인 에러:', error);
       
       let errorMessage = '로그인 중 오류가 발생했습니다.';
       
+      // 에러 메시지 안전하게 추출
+      const rawErrorMessage = error instanceof Error ? error.message : String(error);
+      
       // 백엔드에서 오는 에러 메시지 처리
-      if (error.message) {
+      if (rawErrorMessage) {
         try {
           // JSON 형태의 에러 메시지인 경우 파싱
-          const errorData = JSON.parse(error.message);
+          const errorData = JSON.parse(rawErrorMessage);
           if (errorData.errors) {
             // 필드별 에러 메시지 추출
             const errorMessages = Object.values(errorData.errors).flat();
@@ -241,7 +253,7 @@ export function useAuth() {
           }
         } catch {
           // JSON 파싱 실패 시 원본 메시지 사용
-          errorMessage = error.message;
+          errorMessage = rawErrorMessage;
         }
       }
       
@@ -332,6 +344,20 @@ export function useAuth() {
       return newTokens;
     } catch (error) {
       debugLog('토큰 갱신 실패:', error);
+      
+      // 에러 메시지 안전하게 추출
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 네트워크 오류인 경우 토큰을 유지
+      if (errorMessage.includes('네트워크') || 
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('NetworkError')) {
+        debugLog('🔄 네트워크 오류로 인한 토큰 갱신 실패, 토큰 유지');
+        throw new Error('네트워크 연결을 확인해주세요.');
+      }
+      
+      // 토큰이 정말 만료된 경우에만 로그아웃
       await logout();
       throw error;
     }
