@@ -30,7 +30,7 @@ export const authApi = {
       const response = await apiClient.post<AuthResponse>(endpoint, {
         user_id: credentials.user_id,
         password: credentials.password
-      });
+      }, true); // skipAuth = true로 설정
       
       // 로그인 성공 시 토큰 저장
       if (response.success && response.tokens) {

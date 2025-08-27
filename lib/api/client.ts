@@ -48,7 +48,8 @@ class ApiClient {
 
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {}
+        options: RequestInit = {},
+        skipAuth: boolean = false
     ): Promise<T> {
         const url = `${this.apiUrl}${endpoint}`
 
@@ -60,7 +61,7 @@ class ApiClient {
             signal: controller.signal,
             headers: {
                 ...this.defaultHeaders,
-                ...this.getAuthHeaders(),
+                ...(skipAuth ? {} : this.getAuthHeaders()),
                 ...options.headers,
             }
         }
@@ -113,20 +114,20 @@ class ApiClient {
         }
     }
 
-    async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    async get<T>(endpoint: string, params?: Record<string, string>, skipAuth: boolean = false): Promise<T> {
         let url = endpoint
         if (params) {
             const searchParams = new URLSearchParams(params)
             url += `?${searchParams.toString()}`
         }
-        return this.request<T>(url, { method: 'GET' })
+        return this.request<T>(url, { method: 'GET' }, skipAuth)
     }
 
-    async post<T>(endpoint: string, body: Record<string, any>): Promise<T> {
+    async post<T>(endpoint: string, body: Record<string, any>, skipAuth: boolean = false): Promise<T> {
         return this.request<T>(endpoint, {
             method: 'POST',
             body: JSON.stringify(body),
-        })
+        }, skipAuth)
     }
 
     async put<T>(endpoint: string, body: Record<string, any>): Promise<T> {
