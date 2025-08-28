@@ -69,7 +69,7 @@ try {
       // API URL 설정 (로컬 개발 서버)
       .replace(
         /NEXT_PUBLIC_API_URL=.*/g,
-        "NEXT_PUBLIC_API_URL=http://localhost:8000"
+        "NEXT_PUBLIC_API_URL=http://localhost:8000/api"
       )
       .replace(/API_URL=.*/g, "API_URL=http://localhost:8000/api")
 
@@ -114,9 +114,9 @@ try {
       // API URL 설정 (개발 서버)
       .replace(
         /NEXT_PUBLIC_API_URL=.*/g,
-        "NEXT_PUBLIC_API_URL=https://fablink-api-dev.com"
+        "NEXT_PUBLIC_API_URL=https://fablink-api-dev.com/api"
       )
-      .replace(/API_URL=.*/g, "API_URL=https://fablink-api-dev.com")
+      .replace(/API_URL=.*/g, "API_URL=https://fablink-api-dev.com/api")
 
       // 디버그 모드 활성화
       .replace(/NEXT_PUBLIC_DEBUG=.*/g, "NEXT_PUBLIC_DEBUG=true")
@@ -158,9 +158,9 @@ try {
       // API URL 설정 (프로덕션 서버)
       .replace(
         /NEXT_PUBLIC_API_URL=.*/g,
-        "NEXT_PUBLIC_API_URL=https://api.fablink.com"
+        "NEXT_PUBLIC_API_URL=https://api.fablink.com/api"
       )
-      .replace(/API_URL=.*/g, "API_URL=https://api.fablink.com")
+      .replace(/API_URL=.*/g, "API_URL=https://api.fablink.com/api")
 
       // 디버그 모드 비활성화
       .replace(/NEXT_PUBLIC_DEBUG=.*/g, "NEXT_PUBLIC_DEBUG=false")
