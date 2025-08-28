@@ -2,14 +2,13 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, ArrowRight, Upload, X, ImageIcon, Shirt } from "lucide-react"
+import { ArrowLeft, ArrowRight, Upload, X, ImageIcon, Shirt, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 // 이 단계에서는 서버 통신 없이 localStorage만 갱신합니다.
@@ -24,116 +23,123 @@ export default function ManufacturingStep2() {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
-  // 디자인 미리보기 상태
-  const [selectedGarmentType, setSelectedGarmentType] = useState<string>('')
-  const [selectedElements, setSelectedElements] = useState<string[]>([])
+  // 디자인 미리보기/생성 상태
   const [previewImage, setPreviewImage] = useState<string | null>(null)
-  
-  // 의류 종류 옵션
-  const garmentTypes = [
-    { id: 'tshirt', name: '티셔츠', silhouette: '/images/garments/tshirt.png' },
-    { id: 'polo', name: '카라티', silhouette: '/images/garments/polo.png' },
-    { id: 'sweatshirt', name: '맨투맨', silhouette: '/images/garments/sweatshirt.png' },
-    { id: 'shirt', name: '셔츠', silhouette: '/images/garments/shirt.png' }
-  ]
-  
-  // 디자인 요소 옵션 (1024x1024 이미지 기준)
-  const designElements = [
-    { id: 'logo', name: '로고', position: { top: '25%', left: '27%' } },
-    { id: 'print', name: '프린팅', position: { top: '45%', left: '50%', transform: 'translateX(-50%)' } },
-    { id: 'patch', name: '패치', position: { top: '70%', left: '25%' } }
-  ]
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null)
+  const [genProgress, setGenProgress] = useState<number>(0)
+
+  // isGenerating 동안 진행률을 유사-무한대로 보여주기 위한 타이머
+  useEffect(() => {
+    if (!isGenerating) return
+    setGenProgress(10)
+    const id = setInterval(() => {
+      setGenProgress((p) => {
+        const next = p + Math.floor(8 + Math.random() * 12) // 8~20 증가
+        return Math.min(next, 90) // 90%에서 대기
+      })
+    }, 500)
+    return () => clearInterval(id)
+  }, [isGenerating])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    setUploadedFiles((prev) => [...prev, ...files])
-  // 컨텍스트에 최신 파일 목록을 저장하여 Step8에서 사용
-  setDesignFiles([...uploadedFiles, ...files])
-    
-    // 첫 번째 파일을 미리보기 이미지로 설정
-    if (files.length > 0) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setPreviewImage(e.target?.result as string)
-      }
-      reader.readAsDataURL(files[0])
+    const file = (e.target.files && e.target.files[0]) || null
+    if (!file) return
+
+    // 단일 파일만 유지
+    setUploadedFiles([file])
+    // 컨텍스트에 최신 파일 목록을 저장하여 Step8에서 사용
+    setDesignFiles([file])
+
+    // 미리보기 이미지 설정 및 이전 생성 이미지 초기화
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setPreviewImage(ev.target?.result as string)
+      setGeneratedImageUrl(null)
     }
+    reader.readAsDataURL(file)
+
+    // 동일 파일 재업로드 트리거를 위해 값 초기화
+    e.currentTarget.value = ""
   }
 
   const removeFile = (index: number) => {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
     if (index === 0) {
       setPreviewImage(null)
+      setGeneratedImageUrl(null)
     }
   }
-  
-  const handleGarmentTypeChange = (type: string) => {
-    setSelectedGarmentType(type)
-  }
-  
-  const handleElementChange = (elementId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedElements(prev => [...prev, elementId])
-    } else {
-      setSelectedElements(prev => prev.filter(id => id !== elementId))
+
+  // 이미지 생성 API 호출
+  const GEN_SKETCH_URL =
+    process.env.NEXT_PUBLIC_GEN_SKETCH_URL ||
+    "https://6ydwjfj2xb.execute-api.ap-northeast-2.amazonaws.com/Fablink-dev/gen-sketch"
+
+  const handleGenerateImage = async () => {
+    if (!previewImage || !pointDescription.trim()) {
+      setErrorMessage("스케치 이미지와 포인트 부위 설명을 입력해주세요.")
+      return
     }
-  }
-  
-  // Canvas로 합성 이미지 생성
-  const generateCompositeImage = async (): Promise<string | null> => {
-    if (!selectedGarmentType || !previewImage) return null
-    
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-    
-    canvas.width = 800
-    canvas.height = 800
-    
-  return new Promise((resolve) => {
-      const garmentImg = new Image()
-      garmentImg.crossOrigin = 'anonymous'
-      garmentImg.onload = () => {
-        // 의류 실루엣 그리기
-        ctx.drawImage(garmentImg, 0, 0, canvas.width, canvas.height)
-        
-        // 사용자 디자인 요소들 그리기
-        const designImg = new Image()
-        designImg.crossOrigin = 'anonymous'
-        designImg.onload = () => {
-          selectedElements.forEach((elementId) => {
-            const element = designElements.find(e => e.id === elementId)
-            if (!element) return
-            
-            let x = parseFloat(element.position.left.replace('%', '')) / 100 * canvas.width
-            const y = parseFloat(element.position.top.replace('%', '')) / 100 * canvas.height
-            
-            let width, height
-            if (elementId === 'print') {
-              width = canvas.width * 0.4
-              height = canvas.height * 0.25
-              // print는 중앙 정렬이므로 x 위치 조정
-              x = x - width / 2
-            } else if (elementId === 'logo') {
-              width = canvas.width * 0.2
-              height = canvas.height * 0.12
-              // logo는 왼쪽 정렬이므로 x 위치 그대로
-            } else {
-              width = canvas.width * 0.18
-              height = canvas.height * 0.1
-              // patch는 왼쪽 정렬이므로 x 위치 그대로
-            }
-            
-            ctx.drawImage(designImg, x, y - height/2, width, height)
-          })
-          
-          // data URL로 저장하여 이후 제출 시 재구성 없이 활용
-          resolve(canvas.toDataURL('image/png'))
-        }
-        designImg.src = previewImage
+    if (!previewImage.startsWith("data:image/")) {
+      setErrorMessage("이미지 파일(png/jpg/jpeg)을 업로드해주세요. PDF는 지원되지 않습니다.")
+      return
+    }
+    setErrorMessage(null)
+    // 재생성 체감 향상을 위해 이전 생성 이미지를 먼저 비웁니다.
+    setGeneratedImageUrl(null)
+    setIsGenerating(true)
+    try {
+      const res = await fetch(GEN_SKETCH_URL, {
+        method: "POST",
+        cache: "no-store", // 브라우저/중간 캐시 방지
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "image/png",
+        },
+        body: JSON.stringify({
+          prompt: pointDescription,
+          image: { base64: previewImage },
+          output: { format: "png", filename: "result.png" },
+        }),
+      })
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "")
+        throw new Error(`이미지 생성 실패 (${res.status}) ${errText}`)
       }
-      garmentImg.src = `/images/garments/${selectedGarmentType}.png`
-    })
+
+      const blob = await res.blob()
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(String(reader.result))
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+
+      setGeneratedImageUrl(dataUrl)
+  // 완료 직전 진행률 100%로 채우기
+  setGenProgress(100)
+
+      // 즉시 로컬 스토리지에도 저장하여 이후 단계 재사용
+      const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+      localStorage.setItem(
+        "manufacturingData",
+        JSON.stringify({
+          ...manufacturingData,
+          compositeImageUrl: dataUrl,
+        })
+      )
+    } catch (err) {
+      console.error(err)
+      setErrorMessage(
+        err instanceof Error ? err.message : "이미지 생성 중 오류가 발생했습니다."
+      )
+    } finally {
+      setIsGenerating(false)
+      // 다음 실행을 위해 진행률 리셋
+      setGenProgress(0)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,9 +166,6 @@ export default function ManufacturingStep2() {
         fileName: uploadedFiles[0]?.name
       })
 
-      // 합성 이미지 생성 및 dataURL 저장
-      const compositeDataUrl = await generateCompositeImage()
-
       const updatedData = {
         ...manufacturingData,
         detail: pointDescription,
@@ -171,8 +174,8 @@ export default function ManufacturingStep2() {
           files: uploadedFiles.length,
           fileNames: uploadedFiles.map(f => f.name),
         },
-        // 미리보기/워크시트용 저장(최종 제출용으로 dataURL 보관)
-        compositeImageUrl: compositeDataUrl || manufacturingData.compositeImageUrl || null,
+        // 생성 이미지 우선 저장, 없으면 기존/미리보기 사용
+        compositeImageUrl: (generatedImageUrl || manufacturingData.compositeImageUrl || previewImage || null),
       }
       localStorage.setItem("manufacturingData", JSON.stringify(updatedData))
 
@@ -187,6 +190,19 @@ export default function ManufacturingStep2() {
 
   const handleBack = () => {
     router.push("/manufacturing")
+  }
+
+  // 생성된 이미지 다운로드
+  const handleDownloadGenerated = () => {
+    if (!generatedImageUrl) return
+    const isJpeg = generatedImageUrl.includes("image/jpeg") || generatedImageUrl.includes("image/jpg")
+    const ext = isJpeg ? "jpg" : "png"
+    const a = document.createElement("a")
+    a.href = generatedImageUrl
+    a.download = `generated.${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   const isFormValid = pointDescription.trim() // 이미지/옵션은 선택사항
@@ -220,7 +236,7 @@ export default function ManufacturingStep2() {
           <p className="text-gray-600">스케치나 디자인 파일을 업로드하고 포인트 부위를 설명해주세요</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* 1열: 파일 업로드 */}
           <Card>
             <CardHeader>
@@ -237,14 +253,13 @@ export default function ManufacturingStep2() {
                 >
                   <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-sm font-medium text-gray-900 mb-1">파일 업로드</p>
-                  <p className="text-xs text-gray-500">jpg, jpeg, png, pdf 지원</p>
+                  <p className="text-xs text-gray-500">jpg, jpeg, png 지원</p>
                 </div>
 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  multiple
-                  accept=".png,.jpg,.jpeg,.pdf"
+                  accept=".png,.jpg,.jpeg"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -293,54 +308,7 @@ export default function ManufacturingStep2() {
             </CardContent>
           </Card>
 
-          {/* 3열: 의류 종류 & 디자인 요소 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <span>의류 종류 & 디자인 요소</span>
-              </CardTitle>
-              <CardDescription>제작할 의류 종류와 디자인 요소를 선택해주세요</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* 의류 종류 */}
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">의류 종류</Label>
-                  <div className="space-y-2">
-                    {garmentTypes.map((type) => (
-                      <div key={type.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={type.id}
-                          checked={selectedGarmentType === type.id}
-                          onCheckedChange={(checked) => {
-                            if (checked) handleGarmentTypeChange(type.id)
-                          }}
-                        />
-                        <Label htmlFor={type.id} className="text-sm">{type.name}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* 디자인 요소 */}
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">디자인 요소</Label>
-                  <div className="space-y-2">
-                    {designElements.map((element) => (
-                      <div key={element.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={element.id}
-                          checked={selectedElements.includes(element.id)}
-                          onCheckedChange={(checked) => handleElementChange(element.id, !!checked)}
-                        />
-                        <Label htmlFor={element.id} className="text-sm">{element.name}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* 제거: 의류 종류 & 디자인 요소 */}
         </div>
 
         {/* 디자인 미리보기 (전체 폭 사용) */}
@@ -349,53 +317,44 @@ export default function ManufacturingStep2() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">디자인 미리보기</CardTitle>
               <CardDescription>선택한 옵션에 따른 디자인 미리보기</CardDescription>
+              {isGenerating && (
+                <div className="mt-3">
+                  <Progress value={genProgress} className="h-2" />
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="relative bg-gray-100 rounded-lg p-6 min-h-[350px] flex items-center justify-center">
-                {selectedGarmentType ? (
-                  <div className="relative flex items-center justify-center">
-                    {/* 의류 실루엣 (이미지 기반) */}
-                    <div className="relative">
-                      <div className="w-80 h-80 relative">
-                        <img 
-                          src={`/images/garments/${selectedGarmentType}.png`}
-                          alt={`${garmentTypes.find(g => g.id === selectedGarmentType)?.name} 실루엣`}
-                          className="w-full h-full object-contain"
-                        />
+                <div className="relative w-full h-full flex items-center justify-center">
+                  {/* 로딩 오버레이 */}
+                  {isGenerating && (
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg p-6">
+                      <div className="flex flex-col items-center w-full max-w-sm">
+                        <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
                       </div>
-                      
-                      {/* 업로드된 이미지를 선택된 요소 위치에 표시 */}
-                      {previewImage && selectedElements.map((elementId) => {
-                        const element = designElements.find(e => e.id === elementId)
-                        if (!element) return null
-                        
-                        return (
-                          <div
-                            key={elementId}
-                            className="absolute"
-                            style={{
-                              ...element.position,
-                              width: elementId === 'print' ? '40%' : elementId === 'logo' ? '20%' : '18%',
-                              height: elementId === 'print' ? '25%' : elementId === 'logo' ? '12%' : '10%'
-                            }}
-                          >
-                            <img
-                              src={previewImage}
-                              alt={`${element.name} 미리보기`}
-                              className="w-full h-full object-contain opacity-90"
-                            />
-                          </div>
-                        )
-                      })}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500">
-                    <Shirt className="h-16 w-16 mx-auto mb-3 text-gray-300" />
-                    <p className="text-base">의류 종류를 선택하면</p>
-                    <p className="text-sm">미리보기가 표시됩니다</p>
-                  </div>
-                )}
+                  )}
+
+                  {generatedImageUrl ? (
+                    <img
+                      src={generatedImageUrl}
+                      alt="생성된 이미지"
+                      className="max-h-[420px] w-auto rounded-md shadow"
+                    />
+                  ) : previewImage ? (
+                    <img
+                      src={previewImage}
+                      alt="업로드 미리보기"
+                      className="max-h-[420px] w-auto rounded-md shadow opacity-95"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-500">
+                      <Shirt className="h-16 w-16 mx-auto mb-3 text-gray-300" />
+                      <p className="text-base">스케치 이미지를 업로드하고</p>
+                      <p className="text-sm">이미지 생성을 눌러주세요</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -411,14 +370,33 @@ export default function ManufacturingStep2() {
 
         {/* Navigation */}
         <div className="flex justify-between pt-6">
-          <Button variant="outline" onClick={handleBack} disabled={isLoading}>
+          <Button variant="outline" onClick={handleBack} disabled={isLoading || isGenerating}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             이전 단계
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid || isLoading}>
-            {isLoading ? '저장 중...' : '다음 단계'}
-            {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-          </Button>
+          <div className="flex items-center gap-2">
+            {generatedImageUrl && (
+              <Button
+                variant="outline"
+                onClick={handleDownloadGenerated}
+                disabled={isGenerating}
+                title="생성된 이미지 다운로드"
+              >
+                <Download className="mr-2 h-4 w-4" /> 다운로드
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleGenerateImage}
+              disabled={isGenerating || !previewImage || !pointDescription.trim()}
+            >
+              {isGenerating ? "이미지 생성 중..." : "이미지 생성"}
+            </Button>
+            <Button onClick={handleSubmit} disabled={!isFormValid || isLoading || isGenerating}>
+              {isLoading ? '저장 중...' : '다음 단계'}
+              {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
