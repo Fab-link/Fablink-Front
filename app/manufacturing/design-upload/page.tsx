@@ -72,9 +72,24 @@ export default function ManufacturingStep2() {
   }
 
   // 이미지 생성 API 호출
-  const GEN_SKETCH_URL =
-    process.env.NEXT_PUBLIC_GEN_SKETCH_URL ||
-    "https://6ydwjfj2xb.execute-api.ap-northeast-2.amazonaws.com/Fablink-dev/gen-sketch"
+  const getGenSketchUrl = () => {
+    const manufacturingData = JSON.parse(localStorage.getItem("manufacturingData") || "{}")
+    const clothingType = manufacturingData.clothing_type
+    
+    console.log('Clothing type:', clothingType)
+    
+    if (clothingType === "pet") {
+      const petUrl = process.env.NEXT_PUBLIC_GEN_SKETCH_PET_URL ||
+        "https://6ydwjfj2xb.execute-api.ap-northeast-2.amazonaws.com/Fablink-dev/gen-sketch-fat"
+      console.log('Using pet URL:', petUrl)
+      return petUrl
+    } else {
+      const humanUrl = process.env.NEXT_PUBLIC_GEN_SKETCH_URL ||
+        "https://6ydwjfj2xb.execute-api.ap-northeast-2.amazonaws.com/Fablink-dev/gen-sketch"
+      console.log('Using human URL:', humanUrl)
+      return humanUrl
+    }
+  }
 
   const handleGenerateImage = async () => {
     if (!previewImage || !pointDescription.trim()) {
@@ -90,7 +105,8 @@ export default function ManufacturingStep2() {
     setGeneratedImageUrl(null)
     setIsGenerating(true)
     try {
-      const res = await fetch(GEN_SKETCH_URL, {
+      const genSketchUrl = getGenSketchUrl()
+      const res = await fetch(genSketchUrl, {
         method: "POST",
         cache: "no-store", // 브라우저/중간 캐시 방지
         headers: {

@@ -22,17 +22,23 @@ export default function ManufacturingStep1() {
     season: "",
     target_customer: "",
     concept: "",
+    clothing_type: "human" as "human" | "pet",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const TARGET_LABELS: Record<string, string> = {
+    // 일반 의류
     teens: '10대',
     twenties: '20대',
     thirties: '30대',
     forties: '40대',
     'fifties-plus': '50대 이상',
     'all-ages': '전 연령',
+    // 애견 의류
+    small: '소형견',
+    medium: '중형견',
+    large: '대형견',
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,12 +59,14 @@ export default function ManufacturingStep1() {
         target_customer: targetLabel, // 한글 라벨 저장
         target_customer_code: formData.target_customer, // 코드 병행 저장(제출용)
         concept: formData.concept,
+        clothing_type: formData.clothing_type, // 의류 타입 추가
         step1: {
           productName: formData.name,
           season: formData.season,
           targetCustomer: targetLabel,
           targetCustomerCode: formData.target_customer,
           concept: formData.concept,
+          clothingType: formData.clothing_type,
         }
       }
       
@@ -116,11 +124,49 @@ export default function ManufacturingStep1() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 의류 타입 선택 */}
+              <div className="space-y-3">
+                <Label>의류 타입 *</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div 
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      formData.clothing_type === 'human' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setFormData({ ...formData, clothing_type: 'human', target_customer: '' })}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">👔</div>
+                      <div className="font-medium">일반 의류</div>
+                      <div className="text-sm text-gray-500">사람용 의류</div>
+                    </div>
+                  </div>
+                  <div 
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      formData.clothing_type === 'pet' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setFormData({ ...formData, clothing_type: 'pet', target_customer: '' })}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">🐕</div>
+                      <div className="font-medium">애견 의류</div>
+                      <div className="text-sm text-gray-500">반려동물용 의류</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="productName">제품명 *</Label>
                 <Input
                   id="productName"
-                  placeholder="예: 여성용 캐주얼 블라우스"
+                  placeholder={formData.clothing_type === 'pet' 
+                    ? "예: 강아지용 겨울 패딩" 
+                    : "예: 여성용 캐주얼 블라우스"
+                  }
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
@@ -144,21 +190,37 @@ export default function ManufacturingStep1() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="targetCustomer">타겟 고객층 *</Label>
+                <Label htmlFor="targetCustomer">
+                  {formData.clothing_type === 'pet' ? '반려동물 크기 *' : '타겟 고객층 *'}
+                </Label>
                 <Select
                   value={formData.target_customer}
                   onValueChange={(value) => setFormData({ ...formData, target_customer: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="타겟 고객층을 선택해주세요" />
+                    <SelectValue placeholder={
+                      formData.clothing_type === 'pet' 
+                        ? '반려동물 크기를 선택해주세요' 
+                        : '타겟 고객층을 선택해주세요'
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="teens">10대 (Teens)</SelectItem>
-                    <SelectItem value="twenties">20대 (Twenties)</SelectItem>
-                    <SelectItem value="thirties">30대 (Thirties)</SelectItem>
-                    <SelectItem value="forties">40대 (Forties)</SelectItem>
-                    <SelectItem value="fifties-plus">50대 이상 (50+)</SelectItem>
-                    <SelectItem value="all-ages">전 연령 (All Ages)</SelectItem>
+                    {formData.clothing_type === 'pet' ? (
+                      <>
+                        <SelectItem value="small">소형견 (Small)</SelectItem>
+                        <SelectItem value="medium">중형견 (Medium)</SelectItem>
+                        <SelectItem value="large">대형견 (Large)</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="teens">10대 (Teens)</SelectItem>
+                        <SelectItem value="twenties">20대 (Twenties)</SelectItem>
+                        <SelectItem value="thirties">30대 (Thirties)</SelectItem>
+                        <SelectItem value="forties">40대 (Forties)</SelectItem>
+                        <SelectItem value="fifties-plus">50대 이상 (50+)</SelectItem>
+                        <SelectItem value="all-ages">전 연령 (All Ages)</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -167,7 +229,10 @@ export default function ManufacturingStep1() {
                 <Label htmlFor="concept">컨셉 설명 *</Label>
                 <Textarea
                   id="concept"
-                  placeholder="제품의 컨셉, 스타일, 특징 등을 자세히 설명해주세요&#10;예: 직장인을 위한 세미 포멀 스타일의 블라우스로, 편안한 착용감과 우아한 실루엣을 강조한 디자인"
+                  placeholder={formData.clothing_type === 'pet' 
+                    ? "반려동물 의류의 컨셉, 스타일, 특징 등을 자세히 설명해주세요&#10;예: 활동적인 강아지를 위한 편안한 일상복으로, 보온성과 활동성을 모두 고려한 실용적인 디자인"
+                    : "제품의 컨셉, 스타일, 특징 등을 자세히 설명해주세요&#10;예: 직장인을 위한 세미 포멀 스타일의 블라우스로, 편안한 착용감과 우아한 실루엣을 강조한 디자인"
+                  }
                   value={formData.concept}
                   onChange={(e) => setFormData({ ...formData, concept: e.target.value })}
                   rows={4}
