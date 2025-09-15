@@ -6,7 +6,7 @@
     "prelocal": "node scripts/setup-env.js local",
     "local": "npx next dev",
     "predev": "node scripts/setup-env.js dev",
-    "dev": "NEXT_PUBLIC_API_URL=https://fablink-api-dev.com npm run build && node scripts/deploy-dev.js",
+    "dev": "NEXT_PUBLIC_API_URL=https://fablink-api-dev.com/api npm run build && node scripts/deploy-dev.js",
     "dev-server": "node scripts/setup-env.js dev && npx next dev",
     "preprod": "node scripts/setup-env.js prod",
     "prod": "npx next build && npx next start",
