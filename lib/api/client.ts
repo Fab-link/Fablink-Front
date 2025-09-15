@@ -23,32 +23,42 @@ class ApiClient {
 
     private getAuthHeaders(): Record<string, string> {
         if (typeof window === 'undefined') return {}
-        // 1) sessionStorage 우선
+        
+        // localStorage에서 토큰 가져오기 (통일된 방식)
         let token: string | null = null
-        try { token = sessionStorage.getItem('authToken') } catch {}
-        // 2) localStorage (authTokens JSON) fallback
-        if (!token) {
-            try {
-                const raw = localStorage.getItem('authTokens')
-                if (raw) {
-                    const parsed = JSON.parse(raw)
-                    if (parsed && typeof parsed.access === 'string') token = parsed.access
+        try {
+            const tokensJson = localStorage.getItem('authTokens')
+            if (tokensJson) {
+                const tokens = JSON.parse(tokensJson)
+                if (tokens && typeof tokens.access === 'string') {
+                    token = tokens.access
                 }
-            } catch {}
+            }
+        } catch (error) {
+            debugLog('토큰 파싱 오류:', error)
         }
-        // 3) cookie fallback (authToken)
+        
+        // 쿠키 fallback (기존 호환성 유지)
         if (!token) {
             try {
-                const m = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('authToken='))
-                if (m) token = decodeURIComponent(m.substring('authToken='.length))
-            } catch {}
+                const cookieMatch = document.cookie.split(';')
+                    .map(c => c.trim())
+                    .find(c => c.startsWith('authToken='))
+                if (cookieMatch) {
+                    token = decodeURIComponent(cookieMatch.substring('authToken='.length))
+                }
+            } catch (error) {
+                debugLog('쿠키 토큰 읽기 오류:', error)
+            }
         }
+        
         return token ? { Authorization: `Bearer ${token}` } : {}
     }
 
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {}
+        options: RequestInit = {},
+        skipAuth: boolean = false
     ): Promise<T> {
         const url = `${this.apiUrl}${endpoint}`
 
@@ -60,7 +70,7 @@ class ApiClient {
             signal: controller.signal,
             headers: {
                 ...this.defaultHeaders,
-                ...this.getAuthHeaders(),
+                ...(skipAuth ? {} : this.getAuthHeaders()),
                 ...options.headers,
             }
         }
@@ -113,20 +123,20 @@ class ApiClient {
         }
     }
 
-    async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    async get<T>(endpoint: string, params?: Record<string, string>, skipAuth: boolean = false): Promise<T> {
         let url = endpoint
         if (params) {
             const searchParams = new URLSearchParams(params)
             url += `?${searchParams.toString()}`
         }
-        return this.request<T>(url, { method: 'GET' })
+        return this.request<T>(url, { method: 'GET' }, skipAuth)
     }
 
-    async post<T>(endpoint: string, body: Record<string, any>): Promise<T> {
+    async post<T>(endpoint: string, body: Record<string, any>, skipAuth: boolean = false): Promise<T> {
         return this.request<T>(endpoint, {
             method: 'POST',
             body: JSON.stringify(body),
-        })
+        }, skipAuth)
     }
 
     async put<T>(endpoint: string, body: Record<string, any>): Promise<T> {

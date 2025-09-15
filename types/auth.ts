@@ -47,12 +47,6 @@ export interface LogoutResponse {
   message: string;
 }
 
-// 사용자 정보 응답 타입
-export interface UserInfoResponse {
-  success: boolean;
-  user: User;
-}
-
 // 인증 상태 타입
 export interface AuthState {
   user: User | null;
